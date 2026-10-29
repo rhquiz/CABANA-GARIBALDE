@@ -1,69 +1,48 @@
 <!doctype html>
-<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Cabana Garibalde | Painel Administrativo</title>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Cabana Garibalde | Administração</title>
 <style>
-*{box-sizing:border-box}body{margin:0;background:#f5f2eb;color:#183d2d;font-family:system-ui,-apple-system,Arial,sans-serif}header{background:#163e2d;color:#fff;padding:28px 20px;border-radius:0 0 22px 22px}main{max-width:850px;margin:25px auto;padding:0 18px 40px}h1{font:32px Georgia,serif;margin:0}h2{font:26px Georgia,serif}.card{background:#fff;padding:20px;border-radius:18px;margin:15px 0;box-shadow:0 6px 25px #173f2910}input{display:block;width:100%;padding:14px;border:1px solid #d4dcd4;border-radius:10px;margin:12px 0;font-size:16px}button{border:0;border-radius:10px;padding:12px 16px;cursor:pointer;font-weight:700;font-size:14px}button:disabled{opacity:.55;cursor:wait}.primary{background:#235b42;color:white;width:100%}.yes{background:#235b42;color:white}.no{background:#f0e5e2;color:#8c3939}.muted{color:#66766d;font-size:14px}.actions{display:flex;gap:10px;margin-top:15px;flex-wrap:wrap}.hidden{display:none!important}.top{display:flex;justify-content:space-between;align-items:center;gap:12px}.top button{background:#ffffff24;color:inherit}.tag{background:#f5e8ce;padding:5px 11px;border-radius:50px;font-size:12px;font-weight:700;white-space:nowrap}.tag.aprovada{background:#dceee2;color:#1b5c39}.tag.negada{background:#f6dede;color:#8c3939}.section{background:#f7f7f3;border-radius:12px;padding:14px;margin:14px 0}.section h3{margin:0 0 12px;font-size:15px}.line{display:flex;justify-content:space-between;gap:12px;padding:5px 0;flex-wrap:wrap}.line span:last-child{text-align:right}.total{font-size:19px;font-weight:800;border-top:1px solid #dce5dc;padding-top:10px;margin-top:8px}.pill{display:inline-block;background:#e5eee7;color:#235b42;border-radius:20px;padding:4px 10px;font-size:12px;font-weight:700}.none{color:#66766d;font-style:italic}.error{color:#9d3535}.wa{color:#225c44;font-weight:600}.heading{font-size:18px;font-weight:800;margin:0}.meta{margin:8px 0 0;color:#617368;font-size:14px}#logout{background:#ffffff22;color:white}#refresh{background:#e3eae3;color:#183d2d}@media(max-width:560px){header{padding:22px 16px}h1{font-size:27px}h2{font-size:24px}.card{padding:16px}.line{font-size:14px}}
+*{box-sizing:border-box}body{margin:0;background:#f5f2eb;color:#183d2d;font-family:system-ui,Arial,sans-serif}header{background:#163e2d;color:white;padding:26px 20px;border-radius:0 0 22px 22px}main{max-width:760px;margin:24px auto;padding:0 16px}h1{font:32px Georgia,serif;margin:0}h2{font:26px Georgia,serif;margin:0}.card{background:#fff;padding:20px;border-radius:18px;margin:14px 0;box-shadow:0 6px 25px #173f2910}input{display:block;width:100%;padding:14px;border:1px solid #d4dcd4;border-radius:10px;margin:12px 0;font-size:16px}button{border:0;border-radius:10px;padding:12px 15px;cursor:pointer;font-weight:700;font-size:14px}button:disabled{opacity:.55;cursor:wait}.primary,.yes{background:#235b42;color:white}.primary{width:100%}.no{background:#f0e5e2;color:#8c3939}.muted{color:#66766d;font-size:14px}.actions{display:flex;gap:10px;margin-top:15px;flex-wrap:wrap}.hidden{display:none!important}.top{display:flex;justify-content:space-between;align-items:center;gap:10px}.top button{background:#ffffff25;color:white}.tag{background:#f5e8ce;padding:5px 10px;border-radius:50px;font-size:12px;white-space:nowrap}.tag.aprovada{background:#dcece0;color:#235b42}.tag.negada,.tag.cancelada{background:#f4e1e1;color:#8c3939}a{color:#225c44}.tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin:18px 0}.tab{background:#e7e7dd;color:#395a4a;padding:13px 5px;border:2px solid transparent}.tab.active{background:#235b42;color:#fff}.toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.refresh{background:#fff;border:1px solid #c6d2c9;color:#235b42}.line{border-top:1px solid #e8ebe6;margin:13px 0}.detail{margin:8px 0;line-height:1.55}.extra{background:#f8f5ed;padding:12px;border-radius:10px;margin-top:10px}.summary{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}.notice{background:#fff4d9;padding:12px;border-radius:10px}.status{min-height:20px}@media(max-width:460px){h1{font-size:27px}.card{padding:16px}.tabs{gap:4px}.tab{font-size:12px;padding:12px 3px}}
 </style></head><body>
-<header><div class="top"><h1>Cabana Garibalde</h1><button id="logout" class="hidden">Sair</button></div><div>Painel de reservas • Garibalde</div></header>
-<main><section id="login" class="card"><h2>Acesso do Garibalde</h2><p class="muted">Entre com o e-mail e a senha cadastrados no Supabase.</p><form id="loginForm"><input id="email" type="email" value="cabana.garibalde@gmail.com" autocomplete="username" required><input id="password" type="password" placeholder="Senha" autocomplete="current-password" required><button class="primary" type="submit">Entrar</button></form></section>
-<section id="dashboard" class="hidden"><div class="top"><h2>Solicitações</h2><button id="refresh">Atualizar ↻</button></div><p class="muted">Confira o comprovante e o recebimento do Pix antes de aprovar. Apenas reservas aprovadas bloqueiam datas.</p><div id="items"></div></section><p id="message" class="muted" role="status" aria-live="polite"></p></main>
+<header><div class="top"><h1>Cabana Garibalde</h1><button id="logout" class="hidden">Sair</button></div><div>Administração de reservas • Garibalde</div></header>
+<main><section id="login" class="card"><h2>Acesso do Garibalde</h2><p class="muted">Entre com seu e-mail e senha cadastrados no Supabase.</p><form id="loginForm"><input id="email" type="email" value="cabana.garibalde@gmail.com" required autocomplete="username"><input id="password" type="password" placeholder="Senha" required autocomplete="current-password"><button class="primary" type="submit">Entrar</button></form></section>
+<section id="dashboard" class="hidden"><div class="toolbar"><h2>Reservas</h2><button id="refresh" class="refresh" type="button">↻ Atualizar</button></div><p class="muted">Confira o Pix antes de aprovar. Somente reservas aprovadas bloqueiam as datas.</p><nav class="tabs" aria-label="Filtrar reservas"><button class="tab active" data-tab="pendente" type="button">Pendentes <span id="count-pendente"></span></button><button class="tab" data-tab="aprovada" type="button">Aprovadas <span id="count-aprovada"></span></button><button class="tab" data-tab="negada" type="button">Reprovadas <span id="count-negada"></span></button></nav><div id="items"></div></section><p id="message" class="muted status" role="status" aria-live="polite"></p></main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 'use strict';
-const client=window.supabase.createClient('https://rntciuxfndgeazwsuwxm.supabase.co','sb_publishable_TDivET7FHAKNj_Z8D2Fi5A_gaAGC9JQ');
 const $=id=>document.getElementById(id);
 const money=n=>Number(n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const fmt=d=>d?new Date(String(d).slice(0,10)+'T12:00:00').toLocaleDateString('pt-BR'):'—';
 const escapeHtml=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const safeNumber=(n,def=0)=>Number.isFinite(Number(n))?Number(n):def;
-function nights(start,end){if(!start||!end)return 0;const a=Date.parse(String(start).slice(0,10)+'T12:00:00Z'),b=Date.parse(String(end).slice(0,10)+'T12:00:00Z');return Math.max(0,Math.round((b-a)/86400000))}
-function row(label,value){return `<div class="line"><span>${escapeHtml(label)}</span><span>${escapeHtml(value)}</span></div>`}
-function extrasHtml(r){
-  const decor=!!r.decoracao_romantica;
-  const petals=Math.max(0,Math.trunc(safeNumber(r.pacotes_petalas)));
-  const where=String(r.local_petalas||'').trim();
-  const valueDecor=decor?120:0, valuePetals=petals*50;
-  const stored=safeNumber(r.valor_adicionais,NaN);
-  const extras=Number.isFinite(stored)?stored:valueDecor+valuePetals;
-  const known=['decoracao_romantica','pacotes_petalas','local_petalas','valor_adicionais'].some(k=>Object.prototype.hasOwnProperty.call(r,k));
-  let html='<div class="section"><h3>❤️ Adicionais solicitados</h3>';
-  if(!known)html+='<p class="none">Adicionais ainda não registrados no banco de dados.</p>';
-  else if(!decor&&!petals)html+='<p class="none">Nenhum adicional solicitado.</p>';
-  else{
-    if(decor)html+=row('Decoração romântica',money(valueDecor));
-    if(petals)html+=row(`${petals} pacote(s) de pétalas`,money(valuePetals));
-    if(petals&&where)html+=row('Local das pétalas',where);
-  }
-  html+=row('Total dos adicionais',money(extras))+'</div>';
-  return {html,extras};
+const dateDays=(a,b)=>{const start=Date.parse(String(a).slice(0,10)+'T12:00:00Z');const end=Date.parse(String(b).slice(0,10)+'T12:00:00Z');return Number.isFinite(start)&&Number.isFinite(end)?Math.max(0,Math.round((end-start)/86400000)):0};
+let client,records=[],activeTab='pendente',loading=false;
+try{if(!window.supabase)throw Error('Não foi possível carregar a conexão. Verifique a internet.');client=window.supabase.createClient('https://rntciuxfndgeazwsuwxm.supabase.co','sb_publishable_TDivET7FHAKNj_Z8D2Fi5A_gaAGC9JQ')}catch(e){$('message').textContent=e.message}
+const setMessage=(s)=>{$('message').textContent=s||''};
+const statusGroup=r=>r.status==='pendente'?'pendente':r.status==='aprovada'?'aprovada':(['negada','cancelada'].includes(r.status)?'negada':'outro');
+const extraInfo=r=>{
+  // Campos opcionais: disponíveis após a integração da criação da reserva ao Supabase.
+  const obj=(r.adicionais&&typeof r.adicionais==='object'&&!Array.isArray(r.adicionais))?r.adicionais:{};
+  const decoration=r.decoracao_romantica??obj.decoracao_romantica??obj.decoracao??false;
+  const petals=Number(r.pacotes_petalas??obj.pacotes_petalas??obj.quantidade_petalas??0)||0;
+  const location=r.local_petalas??obj.local_petalas??obj.local??'';
+  const total=Number(r.valor_adicionais??obj.valor_adicionais??((decoration?120:0)+petals*50));
+  const hasFields=['adicionais','decoracao_romantica','pacotes_petalas','local_petalas','valor_adicionais'].some(k=>Object.prototype.hasOwnProperty.call(r,k));
+  if(!hasFields)return '<p class="muted">Adicionais: informação não registrada nesta reserva.</p>';
+  if(!decoration&&!petals)return '<p><b>Adicionais:</b> Nenhum adicional solicitado.</p>';
+  return `<div class="extra"><b>Adicionais solicitados</b><p class="detail">Decoração romântica: ${decoration?'Sim (R$ 120,00)':'Não'}</p><p class="detail">Pétalas: ${petals} pacote(s) (${money(petals*50)})</p>${location?`<p class="detail">Local das pétalas: ${escapeHtml(location)}</p>`:''}<b>Total dos adicionais: ${money(total)}</b></div>`;
+};
+function render(){
+ document.querySelectorAll('[data-tab]').forEach(b=>{const selected=b.dataset.tab===activeTab;b.classList.toggle('active',selected);b.setAttribute('aria-selected',String(selected))});
+ for(const key of ['pendente','aprovada','negada'])$('count-'+key).textContent='('+records.filter(r=>statusGroup(r)===key).length+')';
+ const filtered=records.filter(r=>statusGroup(r)===activeTab);$('items').replaceChildren();
+ if(!filtered.length){const d=document.createElement('div');d.className='card';d.textContent=activeTab==='pendente'?'Nenhuma reserva pendente.':activeTab==='aprovada'?'Nenhuma reserva aprovada.':'Nenhuma reserva reprovada.';$('items').appendChild(d);return}
+ for(const r of filtered){const div=document.createElement('article');div.className='card';const pending=r.status==='pendente';const total=Number(r.valor_total||0);const extra=Number(r.valor_adicionais||0);const phone=String(r.telefone||'').replace(/\D/g,'');const phoneLink=phone.length>=10?`<a href="https://wa.me/${phone.startsWith('55')?phone:'55'+phone}" target="_blank" rel="noopener noreferrer">${escapeHtml(r.telefone)}</a>`:escapeHtml(r.telefone||'Não informado');
+ div.innerHTML=`<div class="top"><strong>${escapeHtml(r.nome_hospede||'Hóspede não informado')}</strong><span class="tag ${escapeHtml(r.status)}">${escapeHtml(r.status)}</span></div><p class="detail"><b>Cabana ${escapeHtml(r.cabana_id)}</b> · ${dateDays(r.checkin,r.checkout)} diária(s)</p><p class="detail"><b>Entrada:</b> ${fmt(r.checkin)}<br><b>Saída:</b> ${fmt(r.checkout)}</p><p class="detail"><b>Telefone:</b> ${phoneLink}</p><div class="line"></div>${extraInfo(r)}<div class="line"></div><p class="detail"><b>Hospedagem:</b> ${money(total)}</p>${Object.prototype.hasOwnProperty.call(r,'valor_adicionais')?`<p class="detail"><b>Adicionais:</b> ${money(extra)} · <b>Total geral:</b> ${money(total+extra)}</p>`:''}<p class="detail"><b>Sinal informado:</b> ${money(r.valor_sinal)}</p><p class="muted">Solicitada em ${r.criado_em?new Date(r.criado_em).toLocaleString('pt-BR'):'—'}</p>`;
+ if(pending){const actions=document.createElement('div');actions.className='actions';for(const [label,approve,cls] of [['Aprovar',true,'yes'],['Reprovar',false,'no']]){const b=document.createElement('button');b.textContent=label;b.className=cls;b.type='button';b.onclick=async()=>{if(!confirm(approve?'Você conferiu o Pix e deseja aprovar esta reserva?':'Deseja reprovar esta pré-reserva?'))return;actions.querySelectorAll('button').forEach(x=>x.disabled=true);setMessage('Salvando decisão...');try{const {error}=await client.rpc('decidir_reserva',{p_reserva_id:r.id,p_aprovar:approve});if(error)throw error;setMessage('Reserva atualizada com sucesso.');await load(true)}catch(e){setMessage('Não foi possível atualizar: '+e.message);actions.querySelectorAll('button').forEach(x=>x.disabled=false)}};actions.appendChild(b)}div.appendChild(actions)}$('items').appendChild(div)}
 }
-async function refreshAuth(){const {data,error}=await client.auth.getSession();if(error){$('message').textContent=error.message;return}const ok=!!data.session;$('login').classList.toggle('hidden',ok);$('dashboard').classList.toggle('hidden',!ok);$('logout').classList.toggle('hidden',!ok);if(ok)await load()}
-$('loginForm').onsubmit=async e=>{e.preventDefault();$('message').textContent='Entrando...';const {error}=await client.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});$('message').textContent=error?error.message:'';if(!error)await refreshAuth()};
-$('logout').onclick=async()=>{await client.auth.signOut();$('items').replaceChildren();await refreshAuth()};
-$('refresh').onclick=()=>load();
-async function load(){
- $('message').textContent='Atualizando...';
- const {data,error}=await client.from('reservas').select('*').order('criado_em',{ascending:false}).limit(150);
- if(error){$('message').textContent='Erro ao carregar reservas: '+error.message;return}
- $('message').textContent='';$('items').replaceChildren();
- if(!(data||[]).length){$('items').innerHTML='<div class="card">Nenhuma solicitação ainda.</div>';return}
- for(const r of data){
-  const div=document.createElement('article');div.className='card';
-  const pending=r.status==='pendente';
-  const {html:extrasHtmlContent,extras}=extrasHtml(r);
-  const lodging=safeNumber(r.valor_total);
-  const total=lodging+extras;
-  const phone=String(r.telefone||'').replace(/\D/g,'').replace(/^0+/,'');
-  const wa=phone?(phone.startsWith('55')?phone:'55'+phone):'';
-  const contact=wa?`<a class="wa" href="https://wa.me/${wa}" target="_blank" rel="noopener noreferrer">${escapeHtml(r.telefone)} • Conversar no WhatsApp</a>`:escapeHtml(r.telefone||'Não informado');
-  div.innerHTML=`<div class="top"><p class="heading">${escapeHtml(r.nome_hospede||'Hóspede sem nome')}</p><span class="tag ${escapeHtml(r.status)}">${escapeHtml(r.status||'—')}</span></div>
-  <p class="meta">Cabana ${escapeHtml(r.cabana_id)} • ${nights(r.checkin,r.checkout)} diária(s)</p>
-  <div class="section"><h3>📅 Dados da reserva</h3>${row('Entrada',fmt(r.checkin))}${row('Saída',fmt(r.checkout))}${row('E-mail',r.email||'Não informado')}<div class="line"><span>Telefone</span><span>${contact}</span></div></div>
-  ${extrasHtmlContent}
-  <div class="section"><h3>💰 Valores</h3>${row('Hospedagem',money(lodging))}${row('Adicionais',money(extras))}<div class="line total"><span>Total estimado</span><span>${money(total)}</span></div>${row('Sinal da hospedagem (30%)',money(r.valor_sinal))}<p class="muted">Os adicionais são cobrados/confirmados separadamente. Confira os valores antes de aprovar.</p></div>
-  <p class="muted">Solicitada em ${r.criado_em?new Date(r.criado_em).toLocaleString('pt-BR'):'—'}</p>`;
-  if(pending){const actions=document.createElement('div');actions.className='actions';for(const [label,approve,cls] of [['✓ Aprovar',true,'yes'],['✕ Reprovar',false,'no']]){const b=document.createElement('button');b.textContent=label;b.className=cls;b.onclick=async()=>{if(!confirm(approve?'Você conferiu o Pix e deseja aprovar esta reserva?':'Deseja reprovar esta pré-reserva?'))return;for(const x of actions.querySelectorAll('button'))x.disabled=true;const {error}=await client.rpc('decidir_reserva',{p_reserva_id:r.id,p_aprovar:approve});if(error){alert('Não foi possível atualizar: '+error.message);for(const x of actions.querySelectorAll('button'))x.disabled=false;return}await load()};actions.appendChild(b)}div.appendChild(actions)}
-  $('items').appendChild(div);
- }
-}
+async function load(silent=false){if(!client||loading)return;loading=true;$('refresh').disabled=true;if(!silent)setMessage('Atualizando reservas...');try{const {data,error}=await client.from('reservas').select('*').order('criado_em',{ascending:false}).limit(500);if(error)throw error;records=data||[];render();if(!silent)setMessage('Atualizado agora.')}catch(e){setMessage('Erro ao atualizar: '+e.message)}finally{loading=false;$('refresh').disabled=false}}
+async function refreshAuth(){if(!client)return;try{const {data,error}=await client.auth.getSession();if(error)throw error;const ok=!!data.session;$('login').classList.toggle('hidden',ok);$('dashboard').classList.toggle('hidden',!ok);$('logout').classList.toggle('hidden',!ok);if(ok)await load();else{records=[];setMessage('')}}catch(e){setMessage('Erro na autenticação: '+e.message)}}
+$('loginForm').onsubmit=async e=>{e.preventDefault();if(!client)return;setMessage('Entrando...');const btn=$('loginForm').querySelector('button');btn.disabled=true;try{const {error}=await client.auth.signInWithPassword({email:$('email').value,password:$('password').value});if(error)throw error;await refreshAuth()}catch(e){setMessage('Erro ao entrar: '+e.message)}finally{btn.disabled=false}};
+$('logout').onclick=async()=>{if(client)await client.auth.signOut();await refreshAuth()};
+$('refresh').onclick=()=>load();document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{activeTab=b.dataset.tab;render()});
 refreshAuth();
 </script></body></html>
