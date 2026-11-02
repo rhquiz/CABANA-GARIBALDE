@@ -33,33 +33,44 @@ const GARIBALDE_HORARIOS={1:{entrada:'11h',saida:'8h'},2:{entrada:'13h',saida:'1
 function addWhatsapp(container,r){
   const phone=String(r.telefone||'').replace(/\D/g,'');
   if(phone.length<10)return;
-  const b=document.createElement('button');b.type='button';b.className='yes';b.textContent='Enviar WhatsApp';
+  const b=document.createElement('button');b.type='button';b.className='yes';b.textContent='💬 Enviar WhatsApp';
   b.onclick=()=>{
     const total=Number(r.valor_total||0)+Number(r.valor_adicionais||0);
     const horario=GARIBALDE_HORARIOS[Number(r.cabana_id)]||{entrada:'a confirmar',saida:'a confirmar'};
     const primeiroNome=String(r.nome_hospede||'').trim().split(/\s+/)[0];
-    const saudacao=primeiroNome?`Olá, ${primeiroNome}! Tudo bem?`:'Olá! Tudo bem?';
+    const saudacao=primeiroNome?`Olá, ${primeiroNome}! Tudo bem? 🌿`:'Olá! Tudo bem? 🌿';
     const msg=[
       saudacao,
       '',
-      'Recebemos sua solicitação de pré-reserva pelo site da *Cabana Garibalde* e gostaríamos de saber se você tem interesse em confirmar a hospedagem.',
+      'Que alegria receber seu interesse na *Cabana Garibalde*! 🏡✨',
       '',
-      '*Detalhes da sua solicitação:*',
-      `Cabana: ${r.cabana_id}`,
-      `Entrada: ${fmt(r.checkin)}, a partir das ${horario.entrada}`,
-      `Saída: ${fmt(r.checkout)}, até as ${horario.saida}`,
-      `Valor total: ${money(total)}`,
-      `Sinal para confirmação: ${money(r.valor_sinal)}`,
+      'Vimos que você realizou uma solicitação de hospedagem pelo nosso site e gostaríamos de saber se deseja confirmar sua reserva. Será um prazer receber você para dias especiais por aqui! 🤎',
       '',
-      '*Pix (CNPJ):* '+GARIBALDE_PIX,
+      '🌿 *Sua pré-reserva*',
       '',
-      '*Informações importantes:*',
-      'A pré-reserva tem validade de até 48 horas após a solicitação, conforme disponibilidade.',
-      'Pedimos atenção ao horário de saída. A permanência após o checkout poderá gerar cobrança adicional, desde que as condições e valores tenham sido previamente informados e aceitos.',
+      `🏡 *Cabana:* ${r.cabana_id}`,
+      `📅 *Check-in:* ${fmt(r.checkin)}, a partir das ${horario.entrada}`,
+      `📅 *Check-out:* ${fmt(r.checkout)}, até as ${horario.saida}`,
       '',
-      'Você gostaria de confirmar sua reserva? Se desejar, envie o comprovante do sinal por aqui.',
+      `💰 *Valor da hospedagem:* ${money(total)}`,
+      `💚 *Sinal para confirmação:* ${money(r.valor_sinal)}`,
       '',
-      '*Cabana Garibalde*'
+      '🔑 *Chave Pix (CNPJ):*',
+      GARIBALDE_PIX,
+      '',
+      '✨ *Informações importantes*',
+      '',
+      '• Sua pré-reserva fica disponível por até 48 horas após a solicitação.',
+      '• Pedimos atenção ao horário de check-out. Saídas após o horário combinado poderão gerar cobrança adicional, conforme as condições previamente informadas.',
+      '',
+      '*Gostaria de confirmar sua hospedagem conosco?* 💚',
+      '',
+      'Se sim, é só realizar o pagamento do sinal e nos encaminhar o comprovante por aqui!',
+      '',
+      'Será um prazer fazer parte dos seus momentos especiais. 🌿',
+      '',
+      '*Com carinho,*',
+      '*Equipe Cabana Garibalde* 🤎'
     ].join('\n');
     window.open('https://wa.me/'+(phone.startsWith('55')?phone:'55'+phone)+'?text='+encodeURIComponent(msg),'_blank','noopener');
   };
