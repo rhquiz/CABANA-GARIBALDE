@@ -28,7 +28,43 @@ const isLegacy=r=>r.nome_hospede==='Reserva já existente'||!!(r.reserva_existen
 const isPendingValid=r=>r.status==='pendente'&&!!r.criado_em&&new Date(r.criado_em).getTime()+48*3600000>Date.now();
 const statusGroup=r=>r.status==='pendente'&&isPendingValid(r)?'pendente':r.status==='aprovada'?'aprovada':(['negada','cancelada','expirada'].includes(r.status)||r.status==='pendente'?'negada':'outro');
 function deadline(r){const t=new Date(r.criado_em).getTime()+48*3600000;return Number.isFinite(t)?new Date(t).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'}):'não informado'}
-function addWhatsapp(container,r){const phone=String(r.telefone||'').replace(/\D/g,'');if(phone.length<10)return;const b=document.createElement('button');b.type='button';b.className='yes';b.textContent='💬 Enviar WhatsApp';b.onclick=()=>{const total=Number(r.valor_total||0)+Number(r.valor_adicionais||0);const msg=`Olá! 🌿💚\n\nRecebemos sua pré-reserva pelo site da Cabana Garibalde! 🏡✨\n\nSerá um prazer receber você!\n\n🏡 Cabana ${r.cabana_id}\n📅 Entrada: ${fmt(r.checkin)}\n📅 Saída: ${fmt(r.checkout)}\n💰 Valor total: ${money(total)}\n💚 Sinal para confirmação: ${money(r.valor_sinal)}\n\n🔑 Chave Pix: [PREENCHER CHAVE PIX]\n\nPara confirmar a hospedagem, envie o comprovante por aqui. A pré-reserva é válida por até 48 horas após a solicitação.\n\nCabana Garibalde 🌿`;window.open('https://wa.me/'+(phone.startsWith('55')?phone:'55'+phone)+'?text='+encodeURIComponent(msg),'_blank','noopener')};container.append(b)}
+const GARIBALDE_PIX='47.806.751/0001-63';
+const GARIBALDE_HORARIOS={1:{entrada:'11h',saida:'8h'},2:{entrada:'13h',saida:'10h'},3:{entrada:'17h',saida:'14h'}};
+function addWhatsapp(container,r){
+  const phone=String(r.telefone||'').replace(/\D/g,'');
+  if(phone.length<10)return;
+  const b=document.createElement('button');b.type='button';b.className='yes';b.textContent='Enviar WhatsApp';
+  b.onclick=()=>{
+    const total=Number(r.valor_total||0)+Number(r.valor_adicionais||0);
+    const horario=GARIBALDE_HORARIOS[Number(r.cabana_id)]||{entrada:'a confirmar',saida:'a confirmar'};
+    const primeiroNome=String(r.nome_hospede||'').trim().split(/\s+/)[0];
+    const saudacao=primeiroNome?`Olá, ${primeiroNome}! Tudo bem?`:'Olá! Tudo bem?';
+    const msg=[
+      saudacao,
+      '',
+      'Recebemos sua solicitação de pré-reserva pelo site da *Cabana Garibalde* e gostaríamos de saber se você tem interesse em confirmar a hospedagem.',
+      '',
+      '*Detalhes da sua solicitação:*',
+      `Cabana: ${r.cabana_id}`,
+      `Entrada: ${fmt(r.checkin)}, a partir das ${horario.entrada}`,
+      `Saída: ${fmt(r.checkout)}, até as ${horario.saida}`,
+      `Valor total: ${money(total)}`,
+      `Sinal para confirmação: ${money(r.valor_sinal)}`,
+      '',
+      '*Pix (CNPJ):* '+GARIBALDE_PIX,
+      '',
+      '*Informações importantes:*',
+      'A pré-reserva tem validade de até 48 horas após a solicitação, conforme disponibilidade.',
+      'Pedimos atenção ao horário de saída. A permanência após o checkout poderá gerar cobrança adicional, desde que as condições e valores tenham sido previamente informados e aceitos.',
+      '',
+      'Você gostaria de confirmar sua reserva? Se desejar, envie o comprovante do sinal por aqui.',
+      '',
+      '*Cabana Garibalde*'
+    ].join('\n');
+    window.open('https://wa.me/'+(phone.startsWith('55')?phone:'55'+phone)+'?text='+encodeURIComponent(msg),'_blank','noopener');
+  };
+  container.append(b);
+}
 function addRelease(container,r){if(r.manual||!['aprovada','pendente'].includes(r.status))return;const b=document.createElement('button');b.type='button';b.className='no';b.textContent='🔓 Liberar data';b.onclick=async()=>{if(!confirm('Cancelar a reserva de '+r.nome_hospede+' e liberar as datas? O registro será preservado.'))return;b.disabled=true;setMessage('Liberando data...');try{const {error}=await client.rpc('garibalde_liberar_reserva',{p_reserva_id:r.id});if(error)throw error;await load(true);setMessage('Reserva cancelada e data liberada.')}catch(e){setMessage('Erro ao liberar data: '+e.message);b.disabled=false}};container.append(b)}
 const extraInfo=r=>{
   // Campos opcionais: disponíveis após a integração da criação da reserva ao Supabase.
