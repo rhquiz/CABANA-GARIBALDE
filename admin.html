@@ -95,7 +95,8 @@ const extraInfo=r=>{
 };
 function render(){
  document.querySelectorAll('[data-tab]').forEach(b=>{const selected=b.dataset.tab===activeTab;b.classList.toggle('active',selected);b.setAttribute('aria-selected',String(selected))});
- for(const key of ['pendente','aprovada','negada'])$('count-'+key).textContent='('+records.filter(r=>statusGroup(r)===key).length+')';
+ const hojeContagem=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+ for(const key of ['pendente','aprovada','negada'])$('count-'+key).textContent='('+records.filter(r=>statusGroup(r)===key&&(key!=='aprovada'||String(r.checkout||'').slice(0,10)>=hojeContagem)).length+')';
  $('partnerPanel').classList.toggle('hidden',activeTab!=='parcerias');$('financePanel').classList.toggle('hidden',activeTab!=='financeiro');$('calendarPanel').classList.toggle('hidden',activeTab!=='calendario');$('cleanPanel').classList.toggle('hidden',activeTab!=='limpezas');$('items').classList.toggle('hidden',activeTab==='calendario'||activeTab==='limpezas'||activeTab==='financeiro'||activeTab==='parcerias');if(activeTab==='parcerias'){renderPartners();return}if(activeTab==='calendario'){renderCalendar();return}if(activeTab==='limpezas'){loadCleanings();return}if(activeTab==='financeiro'){renderFinance();return}
   // Aprovadas: próximas hospedagens primeiro; hospedagens encerradas ficam no histórico.
   const hojeBrasil=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
@@ -242,6 +243,6 @@ async function load(silent=false){if(!client||loading)return;loading=true;$('ref
 async function refreshAuth(){if(!client)return;try{const {data,error}=await client.auth.getSession();if(error)throw error;const ok=!!data.session;$('login').classList.toggle('hidden',ok);$('dashboard').classList.toggle('hidden',!ok);$('logout').classList.toggle('hidden',!ok);if(ok)await load();else{records=[];setMessage('')}}catch(e){setMessage('Erro na autenticação: '+e.message)}}
 $('loginForm').onsubmit=async e=>{e.preventDefault();if(!client)return;setMessage('Entrando...');const btn=$('loginForm').querySelector('button');btn.disabled=true;try{const {error}=await client.auth.signInWithPassword({email:$('email').value,password:$('password').value});if(error)throw error;await refreshAuth()}catch(e){setMessage('Erro ao entrar: '+e.message)}finally{btn.disabled=false}};
 $('logout').onclick=async()=>{if(client)await client.auth.signOut();await refreshAuth()};
-$('refresh').onclick=()=>load();document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{activeTab=b.dataset.tab;render()});
+$('refresh').onclick=()=>load();document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{if(b.dataset.tab==='aprovada')mostrarHistoricoAprovadas=false;activeTab=b.dataset.tab;render()});
 refreshAuth();
 </script></body></html>
