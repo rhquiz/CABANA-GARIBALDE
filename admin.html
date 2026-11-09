@@ -80,6 +80,57 @@ function addWhatsapp(container,r){
   };
   container.append(b);
 }
+function addConfirmacaoWhatsapp(container,r){
+  if(r.status!=='aprovada'||isLegacy(r))return;
+  const phone=String(r.telefone||'').replace(/\D/g,'');
+  const b=document.createElement('button');b.type='button';b.className='yes';
+  b.textContent='💬 Confirmar hospedagem pelo WhatsApp';
+  if(phone.length<10){b.disabled=true;b.title='Cadastre o telefone do hóspede para enviar a mensagem';container.append(b);return}
+  const today=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+  const days=dateDays(today,r.checkin);
+  const hint=document.createElement('p');hint.className='muted';
+  hint.textContent=days===2?'📅 Faltam 2 dias para a entrada: momento ideal para confirmar.':days===1?'📅 A entrada é amanhã.':days===0?'📅 A entrada é hoje.':days>2?`📅 Faltam ${days} dias para a entrada. Você pode enviar a confirmação mais perto da data.`:'📅 Hospedagem em andamento ou data já iniciada.';
+  container.append(hint);
+  b.onclick=()=>{
+    const horario=GARIBALDE_HORARIOS[Number(r.cabana_id)]||{entrada:'a confirmar',saida:'a confirmar'};
+    const total=Number(r.valor_total||0)+Number(r.valor_adicionais||0);
+    const paid=r.valor_pago===null||r.valor_pago===undefined?null:Number(r.valor_pago);
+    const nome=String(r.nome_hospede||'').trim().split(/\s+/)[0]||'tudo bem';
+    const extras=[];
+    if(r.decoracao_romantica){extras.push('💐 Decoração romântica: sim');if(r.placa_neon)extras.push('💡 Placa de LED: '+r.placa_neon);if(r.urso_pelucia)extras.push('🧸 Urso de pelúcia: sim')}
+    if(Number(r.pacotes_petalas||0)>0){extras.push('🌹 Pétalas: '+r.pacotes_petalas+' pacote(s)');if(r.local_petalas)extras.push('📍 Local das pétalas: '+r.local_petalas)}
+    if(r.observacoes)extras.push('📝 Observações: '+r.observacoes);
+    const msg=[
+      `Olá, ${nome}! Tudo bem? 🌿`,
+      '',
+      '🏡 *Cabana Garibalde — confirmação da sua hospedagem*',
+      '',
+      'Sua reserva está *APROVADA*! 💚 Estamos passando para confirmar os detalhes da sua chegada e deixar tudo organizado para receber você.',
+      '',
+      `🏡 *Cabana:* ${r.cabana_id}`,
+      `📅 *Entrada:* ${fmtWeek(r.checkin)}, a partir das ${horario.entrada}`,
+      `📅 *Saída:* ${fmtWeek(r.checkout)}, até as ${horario.saida}`,
+      `🌙 *Diárias:* ${dateDays(r.checkin,r.checkout)}`,
+      '',
+      '*Detalhes da reserva:*',
+      ...(extras.length?extras:['✨ Nenhum adicional solicitado.']),
+      '',
+      `💰 *Hospedagem:* ${money(r.valor_total)}`,
+      `🎁 *Adicionais:* ${money(r.valor_adicionais)}`,
+      `💚 *Total da reserva:* ${money(total)}`,
+      ...(paid===null?['💳 *Valor recebido:* a confirmar com nossa equipe','💳 *Saldo restante:* a confirmar com nossa equipe']:[`💳 *Valor já recebido:* ${money(paid)}`,`💳 *Saldo restante:* ${money(Math.max(0,total-paid))}`]),
+      '',
+      '⚠️ *Importante:* respeite os horários de entrada e saída. Em caso de imprevisto, entre em contato com antecedência para verificarmos as condições da reserva.',
+      '',
+      '*Está tudo certo para sua chegada?* Por favor, responda esta mensagem para confirmarmos. 💚',
+      '',
+      'Esperamos você para uma experiência especial! 🌿',
+      '*Equipe Cabana Garibalde* 🤎'
+    ].join('\n');
+    window.open('https://wa.me/'+(phone.startsWith('55')?phone:'55'+phone)+'?text='+encodeURIComponent(msg),'_blank','noopener');
+  };
+  container.append(b);
+}
 function addRelease(container,r){if(r.manual||!['aprovada','pendente'].includes(r.status))return;const b=document.createElement('button');b.type='button';b.className='no';b.textContent='🔓 Liberar data';b.onclick=async()=>{if(!confirm('Cancelar a reserva de '+r.nome_hospede+' e liberar as datas? O registro será preservado.'))return;b.disabled=true;setMessage('Liberando data...');try{const {error}=await client.rpc('garibalde_liberar_reserva',{p_reserva_id:r.id});if(error)throw error;await load(true);setMessage('Reserva cancelada e data liberada.')}catch(e){setMessage('Erro ao liberar data: '+e.message);b.disabled=false}};container.append(b)}
 const extraInfo=r=>{
   // Campos opcionais: disponíveis após a integração da criação da reserva ao Supabase.
@@ -114,7 +165,7 @@ function render(){
  if(!filtered.length){const d=document.createElement('div');d.className='card';d.textContent=activeTab==='pendente'?'Nenhuma reserva pendente.':activeTab==='aprovada'?'Nenhuma hospedagem aprovada em andamento ou futura. Use Ver histórico de aprovadas para consultar as anteriores.':'Nenhuma reserva reprovada.';$('items').appendChild(d);return}
  for(const r of filtered){const div=document.createElement('article');div.className='card';const pending=isPendingValid(r);const total=Number(r.valor_total||0);const extra=Number(r.valor_adicionais||0);const phone=String(r.telefone||'').replace(/\D/g,'');const phoneLink=phone.length>=10?`<a href="https://wa.me/${phone.startsWith('55')?phone:'55'+phone}" target="_blank" rel="noopener noreferrer">${escapeHtml(r.telefone)}</a>`:escapeHtml(r.telefone||'Não informado');
  div.innerHTML=`<div class="top"><strong>${escapeHtml(r.nome_hospede||'Hóspede não informado')}</strong><span class="tag ${escapeHtml(r.status)}">${escapeHtml(r.status)}</span></div><p class="detail"><b>Cabana ${escapeHtml(r.cabana_id)}</b> · ${dateDays(r.checkin,r.checkout)} diária(s)</p><p class="detail"><b>Entrada:</b> ${fmtWeek(r.checkin)}<br><b>Saída:</b> ${fmtWeek(r.checkout)}</p><p class="detail"><b>Telefone:</b> ${phoneLink}</p><div class="line"></div>${extraInfo(r)}<div class="line"></div><p class="detail"><b>Hospedagem:</b> ${money(total)}</p>${Object.prototype.hasOwnProperty.call(r,'valor_adicionais')?`<p class="detail"><b>Adicionais:</b> ${money(extra)} · <b>Total geral:</b> ${money(total+extra)}</p>`:''}<p class="detail"><b>Sinal solicitado:</b> ${money(r.valor_sinal)}</p><p class="detail"><b>Valor recebido:</b> ${r.valor_pago===null||r.valor_pago===undefined?'Ainda não informado':money(r.valor_pago)}</p><p class="detail"><b>Falta receber:</b> ${r.valor_pago===null||r.valor_pago===undefined?'A confirmar':money(Math.max(0,total+extra-Number(r.valor_pago)))}</p><p class="detail"><b>Observações:</b> ${escapeHtml(r.observacoes||'Nenhuma')}</p><p class="muted">Solicitada em ${r.criado_em?new Date(r.criado_em).toLocaleString('pt-BR'):'—'}</p>`;
- if(!pending){addEditButton(div,r)}if(!isLegacy(r))addReceivedPayment(div,r);if(r.status==='pendente'){const p=document.createElement('p');p.className='notice';p.textContent=isPendingValid(r)?'🟡 Pré-reserva válida até '+deadline(r):'Prazo de 48 horas encerrado';div.append(p);const w=document.createElement('div');w.className='actions';addWhatsapp(w,r);div.append(w)}if(pending){const actions=document.createElement('div');actions.className='actions';for(const [label,approve,cls] of [['Aprovar',true,'yes'],['Reprovar',false,'no']]){const b=document.createElement('button');b.textContent=label;b.className=cls;b.type='button';b.onclick=async()=>{if(!confirm(approve?'Você conferiu o Pix e deseja aprovar esta reserva?':'Deseja reprovar esta pré-reserva?'))return;actions.querySelectorAll('button').forEach(x=>x.disabled=true);setMessage('Salvando decisão...');try{const {error}=await client.rpc('decidir_reserva',{p_reserva_id:r.id,p_aprovar:approve});if(error)throw error;setMessage('Reserva atualizada com sucesso.');await load(true)}catch(e){setMessage('Não foi possível atualizar: '+e.message);actions.querySelectorAll('button').forEach(x=>x.disabled=false)}};actions.appendChild(b)}div.appendChild(actions)}addRelease(div,r);$('items').appendChild(div)}
+ if(r.status==='aprovada'){const wa=document.createElement('div');wa.className='actions';addConfirmacaoWhatsapp(wa,r);div.append(wa)}if(!pending){addEditButton(div,r)}if(!isLegacy(r))addReceivedPayment(div,r);if(r.status==='pendente'){const p=document.createElement('p');p.className='notice';p.textContent=isPendingValid(r)?'🟡 Pré-reserva válida até '+deadline(r):'Prazo de 48 horas encerrado';div.append(p);const w=document.createElement('div');w.className='actions';addWhatsapp(w,r);div.append(w)}if(pending){const actions=document.createElement('div');actions.className='actions';for(const [label,approve,cls] of [['Aprovar',true,'yes'],['Reprovar',false,'no']]){const b=document.createElement('button');b.textContent=label;b.className=cls;b.type='button';b.onclick=async()=>{if(!confirm(approve?'Você conferiu o Pix e deseja aprovar esta reserva?':'Deseja reprovar esta pré-reserva?'))return;actions.querySelectorAll('button').forEach(x=>x.disabled=true);setMessage('Salvando decisão...');try{const {error}=await client.rpc('decidir_reserva',{p_reserva_id:r.id,p_aprovar:approve});if(error)throw error;setMessage('Reserva atualizada com sucesso.');await load(true)}catch(e){setMessage('Não foi possível atualizar: '+e.message);actions.querySelectorAll('button').forEach(x=>x.disabled=false)}};actions.appendChild(b)}div.appendChild(actions)}addRelease(div,r);$('items').appendChild(div)}
 }
 function localISO(y,m,d){return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`}
 function reservationsOnDay(iso){
