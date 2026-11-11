@@ -214,6 +214,7 @@ function addReceivedPayment(container,r){
  };
 }
 function addEditButton(container,r){
+ if(r.manual||r.parceria)return;
  const b=document.createElement('button');b.type='button';b.className='edit-button';b.textContent='✎ Editar reserva';b.onclick=()=>showEditForm(container,r,b);container.append(b)
 }
 function showEditForm(container,r,trigger){
@@ -224,6 +225,30 @@ function showEditForm(container,r,trigger){
  const name=makeField('Nome do hóspede','nome',isLegacy(r)?'':r.nome_hospede);
  const phone=makeField('Telefone / WhatsApp','telefone',r.telefone==='Não informado'?'':r.telefone,'tel');
  const email=makeField('E-mail (opcional)','email',r.email||'','email');
+ // Alteração de datas em ação separada, para preservar a edição existente.
+ if(!r.manual&&!r.parceria&&r.status==='aprovada'&&!isLegacy(r)){
+  const dates=document.createElement('section');dates.className='extra';dates.style.marginTop='15px';
+  dates.innerHTML='<b>📅 Alterar datas da hospedagem</b><p class="muted">Verificamos se a nova data está livre antes de salvar. A reserva continua sendo a mesma.</p>';
+  const dateForm=document.createElement('form');dateForm.className='edit-form';
+  dateForm.innerHTML=`<label>Entrada<input name="checkin" type="date" value="${escapeHtml(r.checkin)}" required></label><label>Saída<input name="checkout" type="date" value="${escapeHtml(r.checkout)}" required></label><label>Novo valor total da hospedagem (R$)<input name="valor" type="number" min="0" step="0.01" value="${Number(r.valor_total||0)}" required></label><p class="muted">Informe o novo valor total da hospedagem, incluindo a diária adicional. Os adicionais e o valor já recebido serão preservados.</p><button type="submit" class="yes">📅 Salvar novas datas e bloquear calendário</button><p class="muted" role="status"></p>`;
+  dateForm.onsubmit=async ev=>{
+   ev.preventDefault();ev.stopPropagation();
+   const entrada=dateForm.elements.checkin.value,saida=dateForm.elements.checkout.value,valor=Number(dateForm.elements.valor.value),msg=dateForm.querySelector('[role=status]'),btn=dateForm.querySelector('[type=submit]');
+   if(!entrada||!saida||saida<=entrada||!Number.isFinite(valor)||valor<0){msg.textContent='Confira as datas e o valor.';return}
+   if(!confirm(`Alterar a reserva de ${r.nome_hospede} para ${fmt(entrada)} até ${fmt(saida)} e atualizar o valor da hospedagem para ${money(valor)}?`))return;
+   btn.disabled=true;msg.textContent='Verificando disponibilidade e salvando...';
+   try{
+    const {error}=await client.rpc('garibalde_alterar_datas_reserva',{p_reserva_id:r.id,p_checkin:entrada,p_checkout:saida,p_valor_total:valor});
+    if(error)throw error;
+    msg.textContent='Datas atualizadas e bloqueadas com sucesso.';
+    await load(true);setMessage('Datas alteradas. Confira o calendário e o site público.');
+   }catch(err){msg.textContent='Não foi possível alterar: '+err.message;btn.disabled=false}
+  };
+  dates.append(dateForm);form.append(dates);
+ }else if(r.manual||r.parceria){
+  const warning=document.createElement('p');warning.className='notice';warning.textContent='Esta hospedagem é manual ou parceria. A alteração de datas precisa ser feita no cadastro específico para preservar os registros financeiros.';form.append(warning);
+ }
+
  const checkLabel=document.createElement('label');checkLabel.className='checkline';const decoration=document.createElement('input');decoration.type='checkbox';decoration.checked=!!r.decoracao_romantica;checkLabel.append(decoration,document.createTextNode('Decoração romântica — R$ 120,00'));form.append(checkLabel);
  const plaqueLabel=document.createElement('label');plaqueLabel.textContent='Placa de LED (inclusa na decoração)';const plaque=document.createElement('select');for(const val of ['','Namora comigo?','Casa comigo?','Te amo','Happy Birthday']){const opt=document.createElement('option');opt.value=val;opt.textContent=val||'Selecione';plaque.append(opt)}plaque.value=r.placa_neon||'';plaqueLabel.append(plaque);form.append(plaqueLabel);const teddyLabel=document.createElement('label');teddyLabel.className='checkline';const teddy=document.createElement('input');teddy.type='checkbox';teddy.checked=!!r.urso_pelucia;teddyLabel.append(teddy,document.createTextNode('Incluir urso de pelúcia'));form.append(teddyLabel);const toggleDecoration=()=>{plaqueLabel.style.display=decoration.checked?'block':'none';teddyLabel.style.display=decoration.checked?'flex':'none'};decoration.addEventListener('change',toggleDecoration);toggleDecoration();
  const petals=makeField('Quantidade de pacotes de pétalas (R$ 50,00 cada)','petals',Number(r.pacotes_petalas||0),'number');petals.min='0';petals.max='100';petals.step='1';
