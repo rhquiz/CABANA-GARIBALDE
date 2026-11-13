@@ -136,7 +136,26 @@ function addConfirmacaoWhatsapp(container,r){
   };
   container.append(b);
 }
-function addRelease(container,r){if(r.manual||!['aprovada','pendente'].includes(r.status))return;const b=document.createElement('button');b.type='button';b.className='no';b.textContent='🔓 Liberar data';b.onclick=async()=>{if(!confirm('Cancelar a reserva de '+r.nome_hospede+' e liberar as datas? O registro será preservado.'))return;b.disabled=true;setMessage('Liberando data...');try{const {error}=await client.rpc('garibalde_liberar_reserva',{p_reserva_id:r.id});if(error)throw error;await load(true);setMessage('Reserva cancelada e data liberada.')}catch(e){setMessage('Erro ao liberar data: '+e.message);b.disabled=false}};container.append(b)}
+function addRelease(container,r){
+ if(!['aprovada','pendente'].includes(r.status))return;
+ const b=document.createElement('button');b.type='button';b.className='no';
+ b.textContent='🔓 Cancelar hospedagem e liberar datas';
+ b.onclick=async()=>{
+  const origem=r.parceria?'parceria':r.manual?'manual':'site';
+  const aviso=`Cancelar a hospedagem de ${r.nome_hospede}\nCabana ${r.cabana_id}\nEntrada: ${fmt(r.checkin)}\nSaída: ${fmt(r.checkout)}\n\nO histórico financeiro será preservado. Deseja continuar?`;
+  if(!confirm(aviso))return;
+  b.disabled=true;setMessage('Cancelando hospedagem e liberando calendário...');
+  try{
+   let result;
+   if(origem==='parceria') result=await client.rpc('garibalde_cancelar_parceria',{p_id:r.id});
+   else result=await client.rpc('garibalde_cancelar_hospedagem_calendario',{p_origem:origem,p_id:String(r.id)});
+   if(result.error)throw result.error;
+   await load(true);
+   setMessage('Hospedagem cancelada. Confira o calendário e o site público.');
+  }catch(e){setMessage('Erro ao cancelar: '+e.message);b.disabled=false}
+ };
+ container.append(b);
+}
 const extraInfo=r=>{
   // Campos opcionais: disponíveis após a integração da criação da reserva ao Supabase.
   const obj=(r.adicionais&&typeof r.adicionais==='object'&&!Array.isArray(r.adicionais))?r.adicionais:{};
@@ -193,7 +212,7 @@ function renderCalendar(){
     const div=document.createElement('div');div.className='detail';const legacy=isLegacy(r);
     const phone=String(r.telefone||'').replace(/\D/g,'');
     div.innerHTML=`<div class="line"></div><p><b>${escapeHtml(r.nome_hospede||'Hóspede não informado')}</b> · ${escapeHtml(r.status)}</p><p><b>Entrada:</b> ${fmtWeek(r.checkin)}<br><b>Saída:</b> ${fmtWeek(r.checkout)}</p><p><b>Telefone:</b> ${phone.length>=10?`<a href="https://wa.me/${phone.startsWith('55')?phone:'55'+phone}" target="_blank" rel="noopener noreferrer">${escapeHtml(r.telefone)}</a>`:escapeHtml(legacy?'Não informado':r.telefone||'Não informado')}</p><p><b>Observações:</b> ${escapeHtml(r.observacoes||'Nenhuma')}</p>${extraInfo(r)}${!legacy?`<p><b>Hospedagem:</b> ${money(r.valor_total)}</p><p><b>Adicionais:</b> ${money(r.valor_adicionais)}</p><p><b>Pago:</b> ${r.manual?money(r.valor_pago):(r.valor_pago===null||r.valor_pago===undefined?'Ainda não informado':money(r.valor_pago))}</p><p><b>Falta receber:</b> ${r.manual?money(r.valor_pendente):(r.valor_pago===null||r.valor_pago===undefined?'A confirmar':money(Math.max(0,Number(r.valor_total||0)+Number(r.valor_adicionais||0)-Number(r.valor_pago))))}</p>`:'<p class="muted">Reserva antiga: valores não informados.</p>'}`;
-    if(!r.parceria)addEditButton(div,r);if(!r.manual&&!legacy&&!r.parceria)addReceivedPayment(div,r);if(r.status==='pendente')addWhatsapp(div,r);if(!r.parceria)addRelease(div,r);detail.append(div)
+    if(!r.parceria)addEditButton(div,r);if(!r.manual&&!legacy&&!r.parceria)addReceivedPayment(div,r);if(r.status==='pendente')addWhatsapp(div,r);addRelease(div,r);detail.append(div)
   }
 }
 function addReceivedPayment(container,r){
@@ -320,7 +339,7 @@ $('payCleaningForm').onsubmit=async e=>{e.preventDefault();const valor=Number($(
 $('calPrev').onclick=()=>{calMonth--;if(calMonth<0){calMonth=11;calYear--}selectedDay=null;renderCalendar()};
 $('calNext').onclick=()=>{calMonth++;if(calMonth>11){calMonth=0;calYear++}selectedDay=null;renderCalendar()};
 $('calCabana').onchange=()=>{selectedDay=null;renderCalendar()};
-async function load(silent=false){if(!client||loading)return;loading=true;$('refresh').disabled=true;if(!silent)setMessage('Atualizando reservas...');try{const {data,error}=await client.from('reservas').select('*').order('criado_em',{ascending:false}).limit(500);if(error)throw error;records=data||[];const m=await client.from('garibalde_reservas_manuais').select('*').order('checkin',{ascending:true});if(m.error)throw m.error;manualRecords=(m.data||[]).map(r=>({...r,manual:true,status:'aprovada',valor_total:Number(r.valor_pago)+Number(r.valor_pendente),valor_sinal:r.valor_pago,observacoes:r.decoracao||'',telefone:'Não informado'}));const pr=await client.rpc('garibalde_listar_parcerias');if(pr.error)throw pr.error;partnerRecords=(pr.data||[]).map(r=>({...r,parceria:true,manual:true,status:'aprovada',nome_hospede:r.nome_pessoa,valor_total:Number(r.valor_combinado||0),valor_pago:Number(r.valor_recebido||0),valor_pendente:Math.max(0,Number(r.valor_combinado||0)-Number(r.valor_recebido||0)),observacoes:'🎁 '+r.tipo+' — '+(r.observacoes||''),telefone:'Não informado'}));render();if(!silent)setMessage('Atualizado agora.');if(!records.length){const check=await client.rpc('eh_admin');if(!check.error&&check.data===false)setMessage('Acesso sem permissão de administrador: entre com a conta autorizada do Garibalde. As reservas não foram apagadas.');else if(check.error)setMessage('Nenhuma reserva visível. Não foi possível confirmar a permissão de administrador: '+check.error.message)}}catch(e){setMessage('Erro ao atualizar: '+e.message)}finally{loading=false;$('refresh').disabled=false}}
+async function load(silent=false){if(!client||loading)return;loading=true;$('refresh').disabled=true;if(!silent)setMessage('Atualizando reservas...');try{const {data,error}=await client.from('reservas').select('*').order('criado_em',{ascending:false}).limit(500);if(error)throw error;records=data||[];const m=await client.from('garibalde_reservas_manuais').select('*').order('checkin',{ascending:true});if(m.error)throw m.error;manualRecords=(m.data||[]).filter(r=>r.status!=='cancelada').map(r=>({...r,manual:true,status:'aprovada',valor_total:Number(r.valor_pago)+Number(r.valor_pendente),valor_sinal:r.valor_pago,observacoes:r.decoracao||'',telefone:'Não informado'}));const pr=await client.rpc('garibalde_listar_parcerias');if(pr.error)throw pr.error;partnerRecords=(pr.data||[]).map(r=>({...r,parceria:true,manual:true,status:'aprovada',nome_hospede:r.nome_pessoa,valor_total:Number(r.valor_combinado||0),valor_pago:Number(r.valor_recebido||0),valor_pendente:Math.max(0,Number(r.valor_combinado||0)-Number(r.valor_recebido||0)),observacoes:'🎁 '+r.tipo+' — '+(r.observacoes||''),telefone:'Não informado'}));render();if(!silent)setMessage('Atualizado agora.');if(!records.length){const check=await client.rpc('eh_admin');if(!check.error&&check.data===false)setMessage('Acesso sem permissão de administrador: entre com a conta autorizada do Garibalde. As reservas não foram apagadas.');else if(check.error)setMessage('Nenhuma reserva visível. Não foi possível confirmar a permissão de administrador: '+check.error.message)}}catch(e){setMessage('Erro ao atualizar: '+e.message)}finally{loading=false;$('refresh').disabled=false}}
 async function refreshAuth(){if(!client)return;try{const {data,error}=await client.auth.getSession();if(error)throw error;const ok=!!data.session;$('login').classList.toggle('hidden',ok);$('dashboard').classList.toggle('hidden',!ok);$('logout').classList.toggle('hidden',!ok);if(ok)await load();else{records=[];setMessage('')}}catch(e){setMessage('Erro na autenticação: '+e.message)}}
 $('loginForm').onsubmit=async e=>{e.preventDefault();if(!client)return;setMessage('Entrando...');const btn=$('loginForm').querySelector('button');btn.disabled=true;try{const {error}=await client.auth.signInWithPassword({email:$('email').value,password:$('password').value});if(error)throw error;await refreshAuth()}catch(e){setMessage('Erro ao entrar: '+e.message)}finally{btn.disabled=false}};
 $('logout').onclick=async()=>{if(client)await client.auth.signOut();await refreshAuth()};
