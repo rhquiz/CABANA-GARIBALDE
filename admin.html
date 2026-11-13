@@ -22,6 +22,10 @@ const money=n=>Number(n||0).toLocaleString('pt-BR',{style:'currency',currency:'B
 const fmt=d=>d?new Date(String(d).slice(0,10)+'T12:00:00').toLocaleDateString('pt-BR'):'—';
 const fmtWeek=d=>d?new Date(String(d).slice(0,10)+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'}):'—';
 const escapeHtml=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const discount=r=>Number(r.desconto_valor||0);
+const gross=r=>Number(r.valor_total||0)+Number(r.valor_adicionais||0);
+const net=r=>Math.max(0,Math.round((gross(r)-discount(r))*100)/100);
+const discountSummary=r=>discount(r)>0?`<p class="detail"><b>Desconto aplicado:</b> - ${money(discount(r))} (${escapeHtml(r.desconto_tipo||'valor')})</p><p class="detail"><b>Total com desconto:</b> ${money(net(r))}</p>`:'';
 const dateDays=(a,b)=>{const start=Date.parse(String(a).slice(0,10)+'T12:00:00Z');const end=Date.parse(String(b).slice(0,10)+'T12:00:00Z');return Number.isFinite(start)&&Number.isFinite(end)?Math.max(0,Math.round((end-start)/86400000)):0};
 let client,records=[],manualRecords=[],partnerRecords=[],activeTab='pendente',loading=false;
 let mostrarHistoricoAprovadas=false;
@@ -39,7 +43,7 @@ function addWhatsapp(container,r){
   if(phone.length<10)return;
   const b=document.createElement('button');b.type='button';b.className='yes';b.textContent='💬 Enviar WhatsApp';
   b.onclick=()=>{
-    const total=Number(r.valor_total||0)+Number(r.valor_adicionais||0);
+    const total=net(r);
     const horario=GARIBALDE_HORARIOS[Number(r.cabana_id)]||{entrada:'a confirmar',saida:'a confirmar'};
     const primeiroNome=String(r.nome_hospede||'').trim().split(/\s+/)[0];
     const saudacao=primeiroNome?`Olá, ${primeiroNome}! Tudo bem? 🌿`:'Olá! Tudo bem? 🌿';
@@ -57,7 +61,8 @@ function addWhatsapp(container,r){
       `📅 *Check-out:* ${fmt(r.checkout)}, até as ${horario.saida}`,
       '',
       `💰 *Valor da hospedagem:* ${money(total)}`,
-      `💚 *Sinal para confirmação:* ${money(r.valor_sinal)}`,
+      `💚 *Sinal originalmente solicitado:* ${money(r.valor_sinal)}`,
+      ...(discount(r)>0?[`🏷️ *Desconto aplicado:* - ${money(discount(r))}`]:[]),
       '',
       '🔑 *Chave Pix (CNPJ):*',
       GARIBALDE_PIX,
@@ -93,7 +98,7 @@ function addConfirmacaoWhatsapp(container,r){
   container.append(hint);
   b.onclick=()=>{
     const horario=GARIBALDE_HORARIOS[Number(r.cabana_id)]||{entrada:'a confirmar',saida:'a confirmar'};
-    const total=Number(r.valor_total||0)+Number(r.valor_adicionais||0);
+    const total=net(r);
     const paid=r.valor_pago===null||r.valor_pago===undefined?null:Number(r.valor_pago);
     const nome=String(r.nome_hospede||'').trim().split(/\s+/)[0]||'tudo bem';
     const extras=[];
@@ -122,6 +127,7 @@ function addConfirmacaoWhatsapp(container,r){
       '',
       `💰 *Hospedagem:* ${money(r.valor_total)}`,
       `🎁 *Adicionais:* ${money(r.valor_adicionais)}`,
+      ...(discount(r)>0?[`🏷️ *Desconto:* - ${money(discount(r))}`]:[]),
       `💚 *Total da reserva:* ${money(total)}`,
       ...(paid===null?['💳 *Valor recebido:* a confirmar com nossa equipe','💳 *Saldo restante:* a confirmar com nossa equipe']:[`💳 *Valor já recebido:* ${money(paid)}`,`💳 *Saldo restante:* ${money(Math.max(0,total-paid))}`]),
       '',
@@ -168,6 +174,16 @@ const extraInfo=r=>{
   if(!decoration&&!petals)return '<p><b>Adicionais:</b> Nenhum adicional solicitado.</p>';
   return `<div class="extra"><b>Adicionais solicitados</b><p class="detail">Decoração romântica: ${decoration?'Sim (R$ 120,00)':'Não'}</p><p class="detail">Pétalas: ${petals} pacote(s) (${money(petals*50)})</p><p class="detail">Placa de LED: ${escapeHtml(r.placa_neon||'Não informada')}</p><p class="detail">Urso de pelúcia: ${r.urso_pelucia?'Sim':'Não'}</p>${location?`<p class="detail">Local das pétalas: ${escapeHtml(location)}</p>`:''}<b>Total dos adicionais: ${money(total)}</b></div>`;
 };
+function addDiscountForm(container,r){
+ const panel=document.createElement('section');panel.className='payment-form';
+ const initial=discount(r);
+ panel.innerHTML=`<h3 style="margin:0 0 8px">🏷️ Desconto antes de aprovar</h3><p class="muted">O desconto vale sobre hospedagem + adicionais. O valor original fica preservado no histórico.</p><p>Original: <b>${money(gross(r))}</b> • Desconto atual: <b>${money(initial)}</b> • Total final: <b>${money(net(r))}</b></p><label>Tipo de desconto<select name="tipo" style="width:100%;padding:12px;border-radius:10px;border:1px solid #b9d0bf"><option value="reais">Valor em reais (R$)</option><option value="percentual">Porcentagem (%)</option></select></label><label>Desconto<input name="valor" type="number" min="0" step="0.01" value="${initial}" required></label><p class="muted preview" aria-live="polite"></p><p class="pay-error" role="alert"></p><button class="yes" type="button">💾 Salvar desconto antes de aprovar</button>`;
+ const select=panel.querySelector('select'),input=panel.querySelector('input'),preview=panel.querySelector('.preview'),error=panel.querySelector('.pay-error'),btn=panel.querySelector('button');
+ const calc=()=>{const n=Number(input.value),base=gross(r);const amount=select.value==='percentual'?Math.round(base*n)/100:n;const valid=input.value!==''&&Number.isFinite(n)&&n>=0&&(select.value!=='percentual'||n<=100)&&amount<=base&&Number.isFinite(amount);preview.textContent=valid?`Desconto: ${money(amount)} | Total final: ${money(base-amount)}`:'Informe desconto válido (até 100% e até o total da reserva).';return valid};
+ select.onchange=calc;input.oninput=calc;calc();
+ btn.onclick=async()=>{if(!calc()){error.textContent='Confira o valor do desconto.';return}if(!confirm('Salvar desconto nesta pré-reserva? Depois confira o novo total e clique em Aprovar.'))return;btn.disabled=true;error.textContent='Salvando desconto...';try{const {error:err}=await client.rpc('garibalde_aplicar_desconto',{p_reserva_id:r.id,p_tipo:select.value,p_valor:Number(input.value)});if(err)throw err;await load(true);setMessage('Desconto salvo! Confira o novo total e clique em Aprovar.')}catch(e){error.textContent='Erro ao salvar desconto: '+e.message;btn.disabled=false}};
+ container.append(panel);
+}
 function render(){
  document.querySelectorAll('[data-tab]').forEach(b=>{const selected=b.dataset.tab===activeTab;b.classList.toggle('active',selected);b.setAttribute('aria-selected',String(selected))});
  const hojeContagem=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
@@ -188,8 +204,8 @@ function render(){
   }
  if(!filtered.length){const d=document.createElement('div');d.className='card';d.textContent=activeTab==='pendente'?'Nenhuma reserva pendente.':activeTab==='aprovada'?'Nenhuma hospedagem aprovada em andamento ou futura. Use Ver histórico de aprovadas para consultar as anteriores.':'Nenhuma reserva reprovada.';$('items').appendChild(d);return}
  for(const r of filtered){const div=document.createElement('article');div.className='card';const pending=isPendingValid(r);const total=Number(r.valor_total||0);const extra=Number(r.valor_adicionais||0);const phone=String(r.telefone||'').replace(/\D/g,'');const phoneLink=phone.length>=10?`<a href="https://wa.me/${phone.startsWith('55')?phone:'55'+phone}" target="_blank" rel="noopener noreferrer">${escapeHtml(r.telefone)}</a>`:escapeHtml(r.telefone||'Não informado');
- div.innerHTML=`<div class="top"><strong>${escapeHtml(r.nome_hospede||'Hóspede não informado')}</strong><span class="tag ${escapeHtml(r.status)}">${escapeHtml(r.status)}</span></div><p class="detail"><b>Cabana ${escapeHtml(r.cabana_id)}</b> · ${dateDays(r.checkin,r.checkout)} diária(s)</p><p class="detail"><b>Entrada:</b> ${fmtWeek(r.checkin)}<br><b>Saída:</b> ${fmtWeek(r.checkout)}</p><p class="detail"><b>Telefone:</b> ${phoneLink}</p><div class="line"></div>${extraInfo(r)}<div class="line"></div><p class="detail"><b>Hospedagem:</b> ${money(total)}</p>${Object.prototype.hasOwnProperty.call(r,'valor_adicionais')?`<p class="detail"><b>Adicionais:</b> ${money(extra)} · <b>Total geral:</b> ${money(total+extra)}</p>`:''}<p class="detail"><b>Sinal solicitado:</b> ${money(r.valor_sinal)}</p><p class="detail"><b>Valor recebido:</b> ${r.valor_pago===null||r.valor_pago===undefined?'Ainda não informado':money(r.valor_pago)}</p><p class="detail"><b>Falta receber:</b> ${r.valor_pago===null||r.valor_pago===undefined?'A confirmar':money(Math.max(0,total+extra-Number(r.valor_pago)))}</p><p class="detail"><b>Observações:</b> ${escapeHtml(r.observacoes||'Nenhuma')}</p><p class="muted">Solicitada em ${r.criado_em?new Date(r.criado_em).toLocaleString('pt-BR'):'—'}</p>`;
- if(r.status==='aprovada'){const wa=document.createElement('div');wa.className='actions';addConfirmacaoWhatsapp(wa,r);div.append(wa)}if(!pending){addEditButton(div,r)}if(!isLegacy(r))addReceivedPayment(div,r);if(r.status==='pendente'){const p=document.createElement('p');p.className='notice';p.textContent=isPendingValid(r)?'🟡 Pré-reserva válida até '+deadline(r):'Prazo de 48 horas encerrado';div.append(p);const w=document.createElement('div');w.className='actions';addWhatsapp(w,r);div.append(w)}if(pending){const actions=document.createElement('div');actions.className='actions';for(const [label,approve,cls] of [['Aprovar',true,'yes'],['Reprovar',false,'no']]){const b=document.createElement('button');b.textContent=label;b.className=cls;b.type='button';b.onclick=async()=>{if(!confirm(approve?'Você conferiu o Pix e deseja aprovar esta reserva?':'Deseja reprovar esta pré-reserva?'))return;actions.querySelectorAll('button').forEach(x=>x.disabled=true);setMessage('Salvando decisão...');try{const {error}=await client.rpc('decidir_reserva',{p_reserva_id:r.id,p_aprovar:approve});if(error)throw error;setMessage('Reserva atualizada com sucesso.');await load(true)}catch(e){setMessage('Não foi possível atualizar: '+e.message);actions.querySelectorAll('button').forEach(x=>x.disabled=false)}};actions.appendChild(b)}div.appendChild(actions)}addRelease(div,r);$('items').appendChild(div)}
+ div.innerHTML=`<div class="top"><strong>${escapeHtml(r.nome_hospede||'Hóspede não informado')}</strong><span class="tag ${escapeHtml(r.status)}">${escapeHtml(r.status)}</span></div><p class="detail"><b>Cabana ${escapeHtml(r.cabana_id)}</b> · ${dateDays(r.checkin,r.checkout)} diária(s)</p><p class="detail"><b>Entrada:</b> ${fmtWeek(r.checkin)}<br><b>Saída:</b> ${fmtWeek(r.checkout)}</p><p class="detail"><b>Telefone:</b> ${phoneLink}</p><div class="line"></div>${extraInfo(r)}<div class="line"></div><p class="detail"><b>Hospedagem:</b> ${money(total)}</p>${Object.prototype.hasOwnProperty.call(r,'valor_adicionais')?`<p class="detail"><b>Adicionais:</b> ${money(extra)} · <b>Total original:</b> ${money(total+extra)}</p>`:''}${discountSummary(r)}<p class="detail"><b>Sinal originalmente solicitado:</b> ${money(r.valor_sinal)}</p><p class="detail"><b>Valor recebido:</b> ${r.valor_pago===null||r.valor_pago===undefined?'Ainda não informado':money(r.valor_pago)}</p><p class="detail"><b>Falta receber:</b> ${r.valor_pago===null||r.valor_pago===undefined?'A confirmar':money(Math.max(0,net(r)-Number(r.valor_pago)))}</p><p class="detail"><b>Observações:</b> ${escapeHtml(r.observacoes||'Nenhuma')}</p><p class="muted">Solicitada em ${r.criado_em?new Date(r.criado_em).toLocaleString('pt-BR'):'—'}</p>`;
+ if(r.status==='aprovada'){const wa=document.createElement('div');wa.className='actions';addConfirmacaoWhatsapp(wa,r);div.append(wa)}if(!pending){addEditButton(div,r)}if(!isLegacy(r)&&!r.manual&&!r.parceria)addReceivedPayment(div,r);if(pending&&!isLegacy(r))addDiscountForm(div,r);if(r.status==='pendente'){const p=document.createElement('p');p.className='notice';p.textContent=isPendingValid(r)?'🟡 Pré-reserva válida até '+deadline(r):'Prazo de 48 horas encerrado';div.append(p);const w=document.createElement('div');w.className='actions';addWhatsapp(w,r);div.append(w)}if(pending){const actions=document.createElement('div');actions.className='actions';for(const [label,approve,cls] of [['Aprovar',true,'yes'],['Reprovar',false,'no']]){const b=document.createElement('button');b.textContent=label;b.className=cls;b.type='button';b.onclick=async()=>{if(!confirm(approve?'Você conferiu o Pix e deseja aprovar esta reserva?':'Deseja reprovar esta pré-reserva?'))return;actions.querySelectorAll('button').forEach(x=>x.disabled=true);setMessage('Salvando decisão...');try{const {error}=await client.rpc('decidir_reserva',{p_reserva_id:r.id,p_aprovar:approve});if(error)throw error;setMessage('Reserva atualizada com sucesso.');await load(true)}catch(e){setMessage('Não foi possível atualizar: '+e.message);actions.querySelectorAll('button').forEach(x=>x.disabled=false)}};actions.appendChild(b)}div.appendChild(actions)}addRelease(div,r);$('items').appendChild(div)}
 }
 function localISO(y,m,d){return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`}
 function reservationsOnDay(iso){
@@ -211,7 +227,7 @@ function renderCalendar(){
    for(const r of reservations){
     const div=document.createElement('div');div.className='detail';const legacy=isLegacy(r);
     const phone=String(r.telefone||'').replace(/\D/g,'');
-    div.innerHTML=`<div class="line"></div><p><b>${escapeHtml(r.nome_hospede||'Hóspede não informado')}</b> · ${escapeHtml(r.status)}</p><p><b>Entrada:</b> ${fmtWeek(r.checkin)}<br><b>Saída:</b> ${fmtWeek(r.checkout)}</p><p><b>Telefone:</b> ${phone.length>=10?`<a href="https://wa.me/${phone.startsWith('55')?phone:'55'+phone}" target="_blank" rel="noopener noreferrer">${escapeHtml(r.telefone)}</a>`:escapeHtml(legacy?'Não informado':r.telefone||'Não informado')}</p><p><b>Observações:</b> ${escapeHtml(r.observacoes||'Nenhuma')}</p>${extraInfo(r)}${!legacy?`<p><b>Hospedagem:</b> ${money(r.valor_total)}</p><p><b>Adicionais:</b> ${money(r.valor_adicionais)}</p><p><b>Pago:</b> ${r.manual?money(r.valor_pago):(r.valor_pago===null||r.valor_pago===undefined?'Ainda não informado':money(r.valor_pago))}</p><p><b>Falta receber:</b> ${r.manual?money(r.valor_pendente):(r.valor_pago===null||r.valor_pago===undefined?'A confirmar':money(Math.max(0,Number(r.valor_total||0)+Number(r.valor_adicionais||0)-Number(r.valor_pago))))}</p>`:'<p class="muted">Reserva antiga: valores não informados.</p>'}`;
+    div.innerHTML=`<div class="line"></div><p><b>${escapeHtml(r.nome_hospede||'Hóspede não informado')}</b> · ${escapeHtml(r.status)}</p><p><b>Entrada:</b> ${fmtWeek(r.checkin)}<br><b>Saída:</b> ${fmtWeek(r.checkout)}</p><p><b>Telefone:</b> ${phone.length>=10?`<a href="https://wa.me/${phone.startsWith('55')?phone:'55'+phone}" target="_blank" rel="noopener noreferrer">${escapeHtml(r.telefone)}</a>`:escapeHtml(legacy?'Não informado':r.telefone||'Não informado')}</p><p><b>Observações:</b> ${escapeHtml(r.observacoes||'Nenhuma')}</p>${extraInfo(r)}${!legacy?`<p><b>Hospedagem:</b> ${money(r.valor_total)}</p><p><b>Adicionais:</b> ${money(r.valor_adicionais)}</p>${discountSummary(r)}<p><b>Pago:</b> ${r.manual?money(r.valor_pago):(r.valor_pago===null||r.valor_pago===undefined?'Ainda não informado':money(r.valor_pago))}</p><p><b>Falta receber:</b> ${r.manual?money(r.valor_pendente):(r.valor_pago===null||r.valor_pago===undefined?'A confirmar':money(Math.max(0,net(r)-Number(r.valor_pago))))}</p>`:'<p class="muted">Reserva antiga: valores não informados.</p>'}`;
     if(!r.parceria)addEditButton(div,r);if(!r.manual&&!legacy&&!r.parceria)addReceivedPayment(div,r);if(r.status==='pendente')addWhatsapp(div,r);addRelease(div,r);detail.append(div)
   }
 }
@@ -220,7 +236,7 @@ function addReceivedPayment(container,r){
  trigger.onclick=()=>{
   const old=container.querySelector('.received-form');if(old){old.remove();return}
   const form=document.createElement('form');form.className='payment-form received-form';
-  const total=Number(r.valor_total||0)+Number(r.valor_adicionais||0);
+  const total=net(r);
   form.innerHTML=`<label>Quanto o hóspede já pagou no total?</label><div class="pay-input-wrap"><span class="pay-prefix">R$</span><input name="paid" type="number" min="0" max="${total}" step="0.01" value="${r.valor_pago??''}" placeholder="Ex.: 120.00" required></div><p class="muted">Informe o total acumulado já recebido, não somente o último pagamento. Valor da reserva: ${money(total)}.</p><p class="pay-error" role="alert"></p><div class="pay-actions"><button class="yes" type="submit">Salvar valor recebido</button><button class="pay-cancel" type="button">Cancelar</button></div>`;
   container.append(form);form.querySelector('.pay-cancel').onclick=()=>form.remove();
   form.onsubmit=async e=>{e.preventDefault();const value=Number(form.elements.paid.value),err=form.querySelector('.pay-error');if(!Number.isFinite(value)||value<0||value>total||Math.abs(value*100-Math.round(value*100))>0.00001){err.textContent='Informe um valor entre zero e '+money(total)+'.';return}
