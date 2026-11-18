@@ -21,8 +21,8 @@
 .day.stay-color.stay-middle{border-left-style:dashed;border-right-style:dashed}
 .day.stay-color.stay-conflict{box-shadow:inset 0 -5px #d26742}
 .stay-key{margin:12px 0 0;display:flex;flex-wrap:wrap;gap:7px}
-.stay-key span{display:inline-flex;align-items:center;gap:5px;padding:5px 8px;border-radius:8px;background:#f5f6f1;font-size:12px}
-.stay-key i{display:inline-block;width:13px;height:13px;border-radius:4px;background:var(--stay-bg);border:1px solid var(--stay-border)}
+.stay-key > span{display:inline-flex;align-items:center;gap:5px;padding:5px 8px;border-radius:8px;background:#f5f6f1;font-size:12px}
+.stay-key > span > i{display:inline-block;width:13px;height:13px;border-radius:4px;background:var(--stay-bg);border:1px solid var(--stay-border)}
 .owner-contact{display:inline-block;margin-top:9px;color:#fff;font-size:13px;text-decoration:underline}
 </style></head><body>
 <header><div class="top"><h1>Cabana Garibalde</h1><button id="logout" class="hidden">Sair</button></div><div>Administração de reservas • Garibalde</div><a class="owner-contact" href="https://wa.me/5564922225950" target="_blank" rel="noopener noreferrer">WhatsApp do Garibalde: (64) 9222-5950</a></header>
@@ -235,33 +235,44 @@ function reservationsOnDay(iso){
  // Não apagar dados do Supabase nem ocultar reservas de hóspedes diferentes.
  return matches.filter(r=>!isLegacy(r)||!matches.some(other=>other!==r&&!isLegacy(other)&&other.status==='aprovada'));
 }
+// Cada reserva recebe uma cor estável; os dias livres continuam visíveis.
+const stayPalette=[['#d9e8fb','#183c69','#7ba5d6'],['#e7d9f6','#4b2869','#ac8ad1'],['#f9dfcc','#683b21','#d6a47e'],['#d8eee4','#1b533c','#86bea4'],['#f8dce7','#702c4b','#d69bb5'],['#e9e5c9','#5b5427','#b9ae73'],['#d7e9eb','#22535a','#87b8bf'],['#f2dfd6','#653c30','#c99c88']];
+const stayIdentity=r=>String(r.parceria?'parceria:':r.manual?'manual:':'site:')+String(r.id);
 function renderCalendar(){
- const grid=$('calGrid');grid.replaceChildren();$('calMonth').textContent=new Date(calYear,calMonth,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+ const grid=$('calGrid');grid.replaceChildren();
+ $('calMonth').textContent=new Date(calYear,calMonth,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+ const monthStart=localISO(calYear,calMonth,1),monthEnd=calMonth===11?localISO(calYear+1,0,1):localISO(calYear,calMonth+1,1);
+ // Datas do mês atual; o checkout não conta como dia ocupado.
+ const stays=[...records,...manualRecords,...partnerRecords].filter(r=>String(r.cabana_id)===String($('calCabana').value)&&(r.status==='aprovada'||isPendingValid(r))&&String(r.checkin||'').slice(0,10)<monthEnd&&String(r.checkout||'').slice(0,10)>monthStart).sort((a,b)=>String(a.checkin).localeCompare(String(b.checkin))||stayIdentity(a).localeCompare(stayIdentity(b)));
+ const colorMap=new Map();let nextColor=0;
+ for(const r of stays){if(r.status==='aprovada'&&!colorMap.has(stayIdentity(r)))colorMap.set(stayIdentity(r),stayPalette[nextColor++%stayPalette.length]);}
  for(const name of ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']){const e=document.createElement('div');e.className='weekday';e.textContent=name;grid.append(e)}
  const offset=new Date(calYear,calMonth,1).getDay();for(let i=0;i<offset;i++){const e=document.createElement('div');e.className='day empty';grid.append(e)}
- const count=new Date(calYear,calMonth+1,0).getDate();for(let day=1;day<=count;day++){
-  const iso=localISO(calYear,calMonth,day),res=reservationsOnDay(iso),approved=res.some(r=>r.status==='aprovada');const b=document.createElement('button');b.type='button';b.className='day'+(approved?' booked':res.length?' pending':'')+(selectedDay===iso?' selected':'');
-   const approvedStays=res.filter(r=>r.status==='aprovada').sort((a,b)=>String(a.checkin).localeCompare(String(b.checkin))||stayKey(a).localeCompare(stayKey(b)));
-   const primary=approvedStays[0];
-   if(primary){const c=colors.get(stayKey(primary))||palette[0];b.classList.add('stay-color');b.style.setProperty('--stay-bg',c[0]);b.style.setProperty('--stay-fg',c[1]);b.style.setProperty('--stay-border',c[2]);
-     b.classList.add(iso===String(primary.checkin).slice(0,10)?'stay-start':new Date(calYear,calMonth,day+1).toLocaleDateString('en-CA')===String(primary.checkout).slice(0,10)?'stay-end':'stay-middle');
-     if(approvedStays.length>1)b.classList.add('stay-conflict');
-   }
-   const names=res.map(r=>r.nome_hospede||'Hóspede').join(', ');
-   b.setAttribute('aria-label',`${fmt(iso)}: ${approved?'reservado':res.length?'pré-reserva':'disponível'}${names?' — '+names:''}`);
-   b.title=names?`${names} — ${res.map(r=>fmt(r.checkin)+' até '+fmt(r.checkout)).join(' / ')}`:'Disponível';
-   const subtitle=primary?(approvedStays.length>1?`${approvedStays.length} reservas`:String(primary.nome_hospede||'Hóspede').split(/\s+/)[0]):res.length?'Pré-reserva':'';
-   b.innerHTML=`<strong>${day}</strong>${subtitle?`<small>${escapeHtml(subtitle)}</small>`:''}`;b.onclick=()=>{selectedDay=iso;renderCalendar()};grid.append(b)
+ const count=new Date(calYear,calMonth+1,0).getDate();
+ for(let day=1;day<=count;day++){
+  const iso=localISO(calYear,calMonth,day),res=reservationsOnDay(iso),approved=res.filter(r=>r.status==='aprovada');
+  const b=document.createElement('button');b.type='button';b.className='day'+(approved.length?' booked':res.length?' pending':'')+(selectedDay===iso?' selected':'');
+  if(approved.length){const c=colorMap.get(stayIdentity(approved[0]))||stayPalette[0];b.classList.add('stay-color');b.style.setProperty('--stay-bg',c[0]);b.style.setProperty('--stay-fg',c[1]);b.style.setProperty('--stay-border',c[2]);if(approved.length>1)b.classList.add('stay-conflict');}
+  b.setAttribute('aria-label',`${fmt(iso)}: ${approved.length?'reservado':res.length?'pré-reserva':'livre'}`);
+  b.innerHTML=`<strong>${day}</strong>`;
+  b.onclick=()=>{selectedDay=iso;renderCalendar()};grid.append(b);
+ }
+ const legend=$('calStayKey');legend.replaceChildren();
+ for(const r of stays.filter(r=>r.status==='aprovada')){
+  if(legend.querySelector(`[data-stay-id="${stayIdentity(r)}"]`))continue;
+  const c=colorMap.get(stayIdentity(r));const item=document.createElement('span');item.dataset.stayId=stayIdentity(r);
+  const swatch=document.createElement('i');swatch.style.setProperty('--stay-bg',c[0]);swatch.style.setProperty('--stay-border',c[2]);
+  const label=document.createElement('span');label.textContent=`${r.nome_hospede||'Hóspede'} (${fmt(r.checkin)} a ${fmt(r.checkout)})`;
+  item.append(swatch,label);legend.append(item);
  }
  const detail=$('calDetail');if(!selectedDay){detail.textContent='Selecione um dia no calendário.';return}
  const reservations=reservationsOnDay(selectedDay);detail.replaceChildren();const heading=document.createElement('strong');heading.textContent=`${fmtWeek(selectedDay)} — Cabana ${$('calCabana').value}`;detail.append(heading);
  if(!reservations.length){const p=document.createElement('p');p.textContent='Nenhuma reserva registrada para este dia.';detail.append(p);return}
-   for(const r of reservations){
-    const div=document.createElement('div');div.className='detail';const legacy=isLegacy(r);
-    const phone=String(r.telefone||'').replace(/\D/g,'');
-    div.innerHTML=`<div class="line"></div><p><b>${escapeHtml(r.nome_hospede||'Hóspede não informado')}</b> · ${escapeHtml(r.status)}</p><p><b>Entrada:</b> ${fmtWeek(r.checkin)}<br><b>Saída:</b> ${fmtWeek(r.checkout)}</p><p><b>Telefone:</b> ${phone.length>=10?`<a href="https://wa.me/${phone.startsWith('55')?phone:'55'+phone}" target="_blank" rel="noopener noreferrer">${escapeHtml(r.telefone)}</a>`:escapeHtml(legacy?'Não informado':r.telefone||'Não informado')}</p><p><b>Observações:</b> ${escapeHtml(r.observacoes||'Nenhuma')}</p>${extraInfo(r)}${!legacy?`<p><b>Hospedagem:</b> ${money(r.valor_total)}</p><p><b>Adicionais:</b> ${money(r.valor_adicionais)}</p>${discountSummary(r)}<p><b>Pago:</b> ${r.manual?money(r.valor_pago):(r.valor_pago===null||r.valor_pago===undefined?'Ainda não informado':money(r.valor_pago))}</p><p><b>Falta receber:</b> ${r.manual?money(r.valor_pendente):(r.valor_pago===null||r.valor_pago===undefined?'A confirmar':money(Math.max(0,net(r)-Number(r.valor_pago))))}</p>`:'<p class="muted">Reserva antiga: valores não informados.</p>'}`;
-    if(!r.parceria)addEditButton(div,r);if(!r.manual&&!legacy&&!r.parceria)addReceivedPayment(div,r);if(r.status==='pendente')addWhatsapp(div,r);addRelease(div,r);detail.append(div)
-  }
+ for(const r of reservations){
+  const div=document.createElement('div');div.className='detail';const legacy=isLegacy(r);const phone=String(r.telefone||'').replace(/\D/g,'');
+  div.innerHTML=`<div class="line"></div><p><b>${escapeHtml(r.nome_hospede||'Hóspede não informado')}</b> · ${escapeHtml(r.status)}</p><p><b>Entrada:</b> ${fmtWeek(r.checkin)}<br><b>Saída:</b> ${fmtWeek(r.checkout)}</p><p><b>Telefone:</b> ${phone.length>=10?`<a href="https://wa.me/${phone.startsWith('55')?phone:'55'+phone}" target="_blank" rel="noopener noreferrer">${escapeHtml(r.telefone)}</a>`:escapeHtml(legacy?'Não informado':r.telefone||'Não informado')}</p><p><b>Observações:</b> ${escapeHtml(r.observacoes||'Nenhuma')}</p>${extraInfo(r)}${!legacy?`<p><b>Hospedagem:</b> ${money(r.valor_total)}</p><p><b>Adicionais:</b> ${money(r.valor_adicionais)}</p>${discountSummary(r)}<p><b>Pago:</b> ${r.manual?money(r.valor_pago):(r.valor_pago===null||r.valor_pago===undefined?'Ainda não informado':money(r.valor_pago))}</p><p><b>Falta receber:</b> ${r.manual?money(r.valor_pendente):(r.valor_pago===null||r.valor_pago===undefined?'A confirmar':money(Math.max(0,net(r)-Number(r.valor_pago))))}</p>`:'<p class="muted">Reserva antiga: valores não informados.</p>'}`;
+  if(!r.parceria)addEditButton(div,r);if(!r.manual&&!legacy&&!r.parceria)addReceivedPayment(div,r);if(r.status==='pendente')addWhatsapp(div,r);addRelease(div,r);detail.append(div);
+ }
 }
 function addReceivedPayment(container,r){
  const trigger=document.createElement('button');trigger.type='button';trigger.className='edit-button';trigger.textContent='💰 Informar valor já recebido';container.append(trigger);
