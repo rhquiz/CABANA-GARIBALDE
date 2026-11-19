@@ -345,6 +345,12 @@ function showEditForm(container,r,trigger){
 
 function renderFinance(){
  const list=$('financeList'),tot=$('financeTotals');list.replaceChildren();
+ const month=financeMonth;
+ const inMonth=r=>String(r.checkin||'').slice(0,7)===month;
+ const monthlyManual=manualRecords.filter(r=>r.status!=='cancelada'&&inMonth(r));
+ const [year,monthNumber]=month.split('-').map(Number);
+ const monthLabel=new Date(year,monthNumber-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+
  const sum=(field)=>monthlyManual.reduce((n,r)=>n+Number(r[field]||0),0);
   const site=records.filter(r=>r.status==='aprovada'&&!isLegacy(r)&&inMonth(r));
   const siteTotal=site.reduce((n,r)=>n+net(r),0),siteReceived=site.reduce((n,r)=>n+Number(r.valor_pago||0),0),siteDiscount=site.reduce((n,r)=>n+discount(r),0);
