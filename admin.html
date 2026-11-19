@@ -350,13 +350,19 @@ function renderFinance(){
  const month=financeMonth;
  const [y,m]=month.split('-').map(Number),label=new Date(y,m-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
  const inMonth=r=>String(r.checkin||'').slice(0,7)===month;
- const siteAll=records.filter(r=>r.status==='aprovada'&&!isLegacy(r));
- const manualAll=manualRecords.filter(r=>r.status==='aprovada');
- // Não somar a mesma hospedagem duas vezes quando ela consta no site e no cadastro manual.
- const normalize=s=>String(s||'').trim().toLocaleLowerCase('pt-BR').replace(/\s+/g,' ');
- const isDuplicate=m=>siteAll.some(s=>String(s.cabana_id)===String(m.cabana_id)&&String(s.checkin)===String(m.checkin)&&String(s.checkout)===String(m.checkout)&&normalize(s.nome_hospede)===normalize(m.nome_hospede));
- const manualUnique=manualAll.filter(r=>!isDuplicate(r));
- const site=siteAll.filter(inMonth),manual=manualUnique.filter(inMonth);
+  // Inclui também reservas antigas: antes eram excluídas por isLegacy(),
+  // fazendo meses históricos, como outubro, aparecerem zerados.
+  const siteAll=records.filter(r=>r.status==='aprovada');
+  const manualAll=manualRecords.filter(r=>r.status==='aprovada');
+  const normalize=s=>String(s||'').trim().toLocaleLowerCase('pt-BR').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ');
+  const sameDates=(a,b)=>String(a.cabana_id)===String(b.cabana_id)&&String(a.checkin).slice(0,10)===String(b.checkin).slice(0,10)&&String(a.checkout).slice(0,10)===String(b.checkout).slice(0,10);
+  // Uma cópia histórica do site pode ter nome genérico e coincidir com um cadastro manual.
+  // Nesses casos, preferir o cadastro com valores informados e evitar soma dupla.
+  const hasAmounts=r=>Number(r.valor_total||0)+Number(r.valor_adicionais||0)+Number(r.valor_pago||0)+Number(r.valor_pendente||0)>0;
+  const isDuplicate=m=>siteAll.some(s=>sameDates(s,m)&&normalize(s.nome_hospede)===normalize(m.nome_hospede)&&hasAmounts(s));
+  const manualUnique=manualAll.filter(r=>!isDuplicate(r));
+  const site=siteAll.filter(inMonth).filter(s=>!(isLegacy(s)&&manualUnique.some(m=>sameDates(s,m))));
+  const manual=manualUnique.filter(inMonth);
  const totalSite=site.reduce((s,r)=>s+net(r),0);
  const totalManual=manual.reduce((s,r)=>s+Number(r.valor_pago||0)+Number(r.valor_pendente||0),0);
  const paidSite=site.reduce((s,r)=>s+Number(r.valor_pago||0),0);
