@@ -343,6 +343,37 @@ function showEditForm(container,r,trigger){
 }
 
 
+function addManualFinanceEdit(container,r){
+ const trigger=document.createElement('button');trigger.type='button';trigger.className='edit-button';trigger.textContent='✏️ Editar reserva';container.append(trigger);
+ trigger.onclick=()=>{
+  const old=container.querySelector('.manual-finance-edit');if(old){old.remove();return}
+  const form=document.createElement('form');form.className='edit-form manual-finance-edit';
+  form.innerHTML=`<h3>Editar reserva manual</h3><p class="muted">Corrija os dados desta hospedagem. As datas e a cabana permanecem iguais para não alterar bloqueios do calendário.</p>
+   <label>Nome do hóspede<input name="nome" type="text" maxlength="160" required value="${escapeHtml(r.nome_hospede||'')}"></label>
+   <label>Valor já recebido (R$)<input name="recebido" type="number" min="0" step="0.01" required value="${Number(r.valor_pago||0)}"></label>
+   <label>Valor pendente (R$)<input name="pendente" type="number" min="0" step="0.01" required value="${Number(r.valor_pendente||0)}"></label>
+   <label>Decoração / observações<textarea name="decoracao">${escapeHtml(r.decoracao||'')}</textarea></label>
+   <p class="muted">Total atualizado: <b class="manual-total">${money(Number(r.valor_pago||0)+Number(r.valor_pendente||0))}</b></p>
+   <p class="pay-error" role="alert"></p><div class="actions"><button type="submit" class="yes">Salvar alterações</button><button type="button" class="no manual-cancel">Cancelar</button></div>`;
+  const preview=()=>{const a=Number(form.elements.recebido.value),b=Number(form.elements.pendente.value);form.querySelector('.manual-total').textContent=Number.isFinite(a)&&Number.isFinite(b)&&a>=0&&b>=0?money(a+b):'Confira os valores'};
+  form.elements.recebido.oninput=preview;form.elements.pendente.oninput=preview;
+  form.querySelector('.manual-cancel').onclick=()=>form.remove();
+  form.onsubmit=async e=>{
+   e.preventDefault();const nome=form.elements.nome.value.trim(),recebido=Number(form.elements.recebido.value),pendente=Number(form.elements.pendente.value),err=form.querySelector('.pay-error');
+   if(!nome||!form.elements.recebido.value||!form.elements.pendente.value||!Number.isFinite(recebido)||!Number.isFinite(pendente)||recebido<0||pendente<0||Math.abs(recebido*100-Math.round(recebido*100))>0.00001||Math.abs(pendente*100-Math.round(pendente*100))>0.00001){err.textContent='Confira nome e valores (sem números negativos e com até duas casas decimais).';return}
+   if(!confirm(`Salvar correções da reserva de ${r.nome_hospede}?\nRecebido: ${money(recebido)}\nPendente: ${money(pendente)}\nTotal: ${money(recebido+pendente)}`))return;
+   const save=form.querySelector('[type=submit]');save.disabled=true;err.textContent='Salvando...';
+   try{
+    const changes={nome_hospede:nome,valor_pago:Number(recebido.toFixed(2)),valor_pendente:Number(pendente.toFixed(2)),decoracao:form.elements.decoracao.value.trim()};
+    const {data,error}=await client.from('garibalde_reservas_manuais').update(changes).eq('id',r.id).select('id');
+    if(error)throw error;if(!data||data.length!==1)throw Error('Alteração não confirmada pelo Supabase. Confira as permissões do administrador.');
+    await load(true);setMessage('Reserva manual atualizada. Totais do financeiro recalculados.');
+   }catch(ex){err.textContent='Erro ao salvar: '+ex.message;save.disabled=false}
+  };
+  container.append(form);
+ };
+}
+
 function renderFinance(){
  const list=$('financeList'),tot=$('financeTotals');list.replaceChildren();
  const month=financeMonth;
@@ -382,7 +413,7 @@ function renderFinance(){
  const note=document.createElement('p');note.className='muted';note.textContent='Valores agrupados pelo check-in. Reservas antigas sem valor registrado não são estimadas. Registros manuais com o mesmo hóspede, cabana e período correspondente têm prioridade para evitar duplicidade.';annual.append(note);
  $('financePanel').querySelectorAll('section[data-annual-finance]').forEach(e=>e.remove());annual.dataset.annualFinance='true';tot.after(annual);
   const siteSection=document.createElement('section');siteSection.innerHTML='<h3>Reservas aprovadas pelo site</h3><p class="muted">Valores atualizados com os descontos e pagamentos registrados.</p>';
-  for(const r of site){const item=document.createElement('div');item.className='caldetail';item.innerHTML=`<strong>Cabana ${escapeHtml(r.cabana_id)} — ${escapeHtml(r.nome_hospede||'Hóspede')}</strong><p>${fmt(r.checkin)} a ${fmt(r.checkout)}</p><p>Original: ${money(gross(r))} • Desconto: ${money(discount(r))} • <b>Total final: ${money(net(r))}</b></p><p>Recebido: <b>${money(r.valor_pago||0)}</b> • Falta: <b>${money(Math.max(0,net(r)-Number(r.valor_pago||0)))}</b></p>`;siteSection.append(item)}
+  for(const r of site){const item=document.createElement('div');item.className='caldetail';item.innerHTML=`<strong>Cabana ${escapeHtml(r.cabana_id)} — ${escapeHtml(r.nome_hospede||'Hóspede')}</strong><p>${fmt(r.checkin)} a ${fmt(r.checkout)}</p><p>Original: ${money(gross(r))} • Desconto: ${money(discount(r))} • <b>Total final: ${money(net(r))}</b></p><p>Recebido: <b>${money(r.valor_pago||0)}</b> • Falta: <b>${money(Math.max(0,net(r)-Number(r.valor_pago||0)))}</b></p>`;addEditButton(item,r);addReceivedPayment(item,r);siteSection.append(item)}
   list.append(siteSection);const manualSection=document.createElement('h3');manualSection.textContent='Reservas manuais';list.append(manualSection);
  if(!monthlyManual.length){const p=document.createElement('p');p.textContent='Nenhuma reserva manual encontrada.';list.append(p);return}
  for(const r of monthlyManual){const item=document.createElement('div');item.className='caldetail';
@@ -406,7 +437,7 @@ function renderFinance(){
    await load(true);setMessage('Pagamento de '+money(amount)+' registrado para '+r.nome_hospede+'.');
   };
   input.focus();
- };list.append(item)
+ };addManualFinanceEdit(item,r);list.append(item)
  }
 }
 
