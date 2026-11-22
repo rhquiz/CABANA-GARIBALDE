@@ -77,7 +77,7 @@ function addWhatsapp(container,r){
       `📅 *Check-out:* ${fmt(r.checkout)}, até as ${horario.saida}`,
       '',
       `💰 *Valor da hospedagem:* ${money(total)}`,
-      `💚 *Sinal originalmente solicitado:* ${money(r.valor_sinal)}`,
+      `💚 *Sinal registrado na reserva:* ${money(r.valor_sinal)}`,
       ...(discount(r)>0?[`🏷️ *Desconto aplicado:* - ${money(discount(r))}`]:[]),
       '',
       '🔑 *Chave Pix (CNPJ):*',
@@ -226,7 +226,7 @@ function render(){
   }
  if(activeTab==='negada'&&cancelledManual.length){const box=document.createElement('section');box.className='card';box.innerHTML='<h3>Reservas manuais canceladas</h3>';for(const r of cancelledManual){const item=document.createElement('div');item.className='caldetail';item.innerHTML=`<b>${escapeHtml(r.nome_hospede||'Hóspede')}</b> · Cabana ${Number(r.cabana_id)} · ${fmt(r.checkin)} a ${fmt(r.checkout)}`;addRestoreButton(item,r);box.append(item)}$('items').append(box)}if(!filtered.length&&!(activeTab==='negada'&&cancelledManual.length)){const d=document.createElement('div');d.className='card';d.textContent=activeTab==='pendente'?'Nenhuma reserva pendente.':activeTab==='aprovada'?'Nenhuma hospedagem aprovada em andamento ou futura. Use Ver histórico de aprovadas para consultar as anteriores.':'Nenhuma reserva reprovada.';$('items').appendChild(d);return}
  for(const r of filtered){const div=document.createElement('article');div.className='card';const pending=isPendingValid(r);const total=Number(r.valor_total||0);const extra=Number(r.valor_adicionais||0);const phone=String(r.telefone||'').replace(/\D/g,'');const phoneLink=phone.length>=10?`<a href="https://wa.me/${phone.startsWith('55')?phone:'55'+phone}" target="_blank" rel="noopener noreferrer">${escapeHtml(r.telefone)}</a>`:escapeHtml(r.telefone||'Não informado');
- div.innerHTML=`<div class="top"><strong>${escapeHtml(r.nome_hospede||'Hóspede não informado')}</strong><span class="tag ${escapeHtml(r.status)}">${escapeHtml(r.status)}</span></div><p class="detail"><b>Cabana ${escapeHtml(r.cabana_id)}</b> · ${dateDays(r.checkin,r.checkout)} diária(s)</p><p class="detail"><b>Entrada:</b> ${fmtWeek(r.checkin)}<br><b>Saída:</b> ${fmtWeek(r.checkout)}</p><p class="detail"><b>Telefone:</b> ${phoneLink}</p><div class="line"></div>${extraInfo(r)}<div class="line"></div><p class="detail"><b>Hospedagem:</b> ${money(total)}</p>${Object.prototype.hasOwnProperty.call(r,'valor_adicionais')?`<p class="detail"><b>Adicionais:</b> ${money(extra)} · <b>Total original:</b> ${money(total+extra)}</p>`:''}${discountSummary(r)}<p class="detail"><b>Sinal originalmente solicitado:</b> ${money(r.valor_sinal)}</p><p class="detail"><b>Valor recebido:</b> ${r.valor_pago===null||r.valor_pago===undefined?'Ainda não informado':money(r.valor_pago)}</p><p class="detail"><b>Falta receber:</b> ${r.valor_pago===null||r.valor_pago===undefined?'A confirmar':money(Math.max(0,net(r)-Number(r.valor_pago)))}</p><p class="detail"><b>Observações:</b> ${escapeHtml(r.observacoes||'Nenhuma')}</p><p class="muted">Solicitada em ${r.criado_em?new Date(r.criado_em).toLocaleString('pt-BR'):'—'}</p>`;
+ div.innerHTML=`<div class="top"><strong>${escapeHtml(r.nome_hospede||'Hóspede não informado')}</strong><span class="tag ${escapeHtml(r.status)}">${escapeHtml(r.status)}</span></div><p class="detail"><b>Cabana ${escapeHtml(r.cabana_id)}</b> · ${dateDays(r.checkin,r.checkout)} diária(s)</p><p class="detail"><b>Entrada:</b> ${fmtWeek(r.checkin)}<br><b>Saída:</b> ${fmtWeek(r.checkout)}</p><p class="detail"><b>Telefone:</b> ${phoneLink}</p><div class="line"></div>${extraInfo(r)}<div class="line"></div><p class="detail"><b>Hospedagem:</b> ${money(total)}</p>${Object.prototype.hasOwnProperty.call(r,'valor_adicionais')?`<p class="detail"><b>Adicionais:</b> ${money(extra)} · <b>Total original:</b> ${money(total+extra)}</p>`:''}${discountSummary(r)}<p class="detail"><b>Sinal registrado na reserva:</b> ${money(r.valor_sinal)}</p><p class="detail"><b>Valor recebido:</b> ${r.valor_pago===null||r.valor_pago===undefined?'Ainda não informado':money(r.valor_pago)}</p><p class="detail"><b>Falta receber:</b> ${r.valor_pago===null||r.valor_pago===undefined?'A confirmar':money(Math.max(0,net(r)-Number(r.valor_pago)))}</p><p class="detail"><b>Observações:</b> ${escapeHtml(r.observacoes||'Nenhuma')}</p><p class="muted">Solicitada em ${r.criado_em?new Date(r.criado_em).toLocaleString('pt-BR'):'—'}</p>`;
  if(r.status==='aprovada'){const wa=document.createElement('div');wa.className='actions';addConfirmacaoWhatsapp(wa,r);div.append(wa)}if(!pending){addEditButton(div,r)}if(!isLegacy(r)&&!r.manual&&!r.parceria)addReceivedPayment(div,r);if(['pendente','aprovada'].includes(r.status)&&!isLegacy(r))addDiscountForm(div,r);if(['pendente','aprovada'].includes(r.status))addPermutaToggle(div,r);if(['cancelada','negada'].includes(r.status))addRestoreButton(div,r);if(r.status==='pendente'){const p=document.createElement('p');p.className='notice';p.textContent=isPendingValid(r)?'🟡 Pré-reserva válida até '+deadline(r):'Prazo de 48 horas encerrado';div.append(p);const w=document.createElement('div');w.className='actions';addWhatsapp(w,r);div.append(w)}if(pending){const actions=document.createElement('div');actions.className='actions';for(const [label,approve,cls] of [['Aprovar',true,'yes'],['Reprovar',false,'no']]){const b=document.createElement('button');b.textContent=label;b.className=cls;b.type='button';b.onclick=async()=>{if(!confirm(approve?'Você conferiu o Pix e deseja aprovar esta reserva?':'Deseja reprovar esta pré-reserva?'))return;actions.querySelectorAll('button').forEach(x=>x.disabled=true);setMessage('Salvando decisão...');try{const {error}=await client.rpc('decidir_reserva',{p_reserva_id:r.id,p_aprovar:approve});if(error)throw error;setMessage('Reserva atualizada com sucesso.');await load(true)}catch(e){setMessage('Não foi possível atualizar: '+e.message);actions.querySelectorAll('button').forEach(x=>x.disabled=false)}};actions.appendChild(b)}div.appendChild(actions)}addRelease(div,r);$('items').appendChild(div)}
 }
 function localISO(y,m,d){return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`}
@@ -382,11 +382,26 @@ async function loadExpenseData(){
  if(b.error)throw Error('Pagamentos da Luciene: '+b.error.message);
  expenseRecords=a.data||[];cleaningPayments=b.data||[];
 }
+async function excluirLancamentoFinanceiro(r,button){
+ const luciene=r.source==='luciene';
+ const descricao=luciene?'pagamento/vale da Luciene':(r.description||'despesa');
+ if(!confirm(`Excluir definitivamente ${descricao} de ${money(r.valor)} em ${fmt(r.date)}?\n\nO valor será retirado dos totais financeiros${luciene?' e do histórico de pagamentos da Luciene':''}.`))return;
+ button.disabled=true;setMessage('Excluindo lançamento...');
+ try{
+  const tabela=luciene?'garibalde_pagamentos_luciene':'garibalde_despesas';
+  const {data,error}=await client.from(tabela).delete().eq('id',r.id).select('id');
+  if(error)throw error;
+  if(!data?.length)throw Error('Exclusão não confirmada. Verifique a permissão do administrador no Supabase.');
+  await load(true);
+  if(activeTab==='limpezas')await loadCleanings();
+  setMessage('Lançamento excluído. Totais recalculados.');
+ }catch(e){setMessage('Erro ao excluir: '+e.message);button.disabled=false}
+}
 function renderExpenses(){const out=$('expensesList');out.replaceChildren();
  const all=[...expenseRecords.map(r=>({...r,source:'despesa',date:r.data_despesa,description:r.descricao})),...cleaningPayments.map(r=>({...r,source:'luciene',date:r.data_pagamento,description:'Luciene — '+(r.tipo||'pagamento')+(r.observacao?' · '+r.observacao:'')}))].sort((a,b)=>String(b.date).localeCompare(String(a.date)));
  if(!all.length){out.textContent='Nenhuma despesa registrada.';return}
  for(const r of all){const div=document.createElement('div');div.className='caldetail';div.innerHTML=`<b>${escapeHtml(r.description||'Despesa')}</b><p>${fmt(r.date)} · ${escapeHtml(r.categoria||r.source)}</p><b>${money(r.valor)}</b>`;
- if(r.source==='despesa'){const btn=document.createElement('button');btn.className='no';btn.style.marginLeft='12px';btn.textContent='Excluir lançamento';btn.onclick=async()=>{if(!confirm('Excluir esta despesa?'))return;btn.disabled=true;const {error}=await client.from('garibalde_despesas').delete().eq('id',r.id);if(error){setMessage('Erro: '+error.message);btn.disabled=false;return}await load(true);setMessage('Despesa excluída.')};div.append(btn)}out.append(div)}
+ const btn=document.createElement('button');btn.type='button';btn.className='no';btn.style.margin='10px 0 0';btn.textContent='🗑️ Excluir lançamento';btn.onclick=()=>excluirLancamentoFinanceiro(r,btn);div.append(btn);out.append(div)}
 }
 $('expenseForm').elements.data.value=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 $('expenseForm').onsubmit=async e=>{e.preventDefault();const f=e.currentTarget,v=Object.fromEntries(new FormData(f)),amount=Number(v.valor);if(!v.descricao.trim()||!v.data||!Number.isFinite(amount)||amount<=0)return alert('Confira os dados da despesa.');if(!confirm('Registrar despesa de '+money(amount)+'?'))return;const btn=f.querySelector('[type=submit]');btn.disabled=true;const {error}=await client.from('garibalde_despesas').insert({data_despesa:v.data,descricao:v.descricao.trim(),categoria:v.categoria,valor:amount});btn.disabled=false;if(error)return setMessage('Erro ao salvar despesa: '+error.message);f.reset();f.elements.data.value=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());await load(true);setMessage('Despesa registrada e abatida do saldo líquido.')};
@@ -461,16 +476,27 @@ function renderFinance(){
 }
 
 async function loadCleanings(){
- const out=$('cleanList'),tot=$('cleanTotals');out.textContent='Carregando limpezas...';tot.textContent='';
+ const out=$('cleanList'),tot=$('cleanTotals'),history=$('payHistory');
+ out.textContent='Carregando limpezas...';tot.textContent='';history.textContent='Carregando pagamentos...';
  try{
-  const {data,error}=await client.from('garibalde_limpezas').select('id,cabana_id,data_limpeza,realizada_em,valor,funcionaria_nome').order('realizada_em',{ascending:false}).limit(1000);
-  if(error)throw error;
-  const rows=data||[],sum=rows.reduce((s,r)=>s+Number(r.valor||0),0);
-  tot.textContent=`${rows.length} limpeza(s) registrada(s) • Total: ${money(sum)}`;
+  const [cleanResult,payResult]=await Promise.all([
+   client.from('garibalde_limpezas').select('id,cabana_id,data_limpeza,realizada_em,valor,funcionaria_nome').order('realizada_em',{ascending:false}).limit(1000),
+   client.from('garibalde_pagamentos_luciene').select('id,data_pagamento,valor,tipo,observacao').order('data_pagamento',{ascending:false}).limit(2000)
+  ]);
+  if(cleanResult.error)throw cleanResult.error;
+  if(payResult.error)throw payResult.error;
+  const rows=cleanResult.data||[],payments=payResult.data||[];
+  const sum=rows.reduce((s,r)=>s+Number(r.valor||0),0);
+  const paid=payments.reduce((s,r)=>s+Number(r.valor||0),0);
+  const balance=Math.round((sum-paid)*100)/100;
+  tot.innerHTML=`<div style="width:100%"><b>${rows.length} limpeza(s) registrada(s)</b></div><div>🧹 Total de limpezas: <b>${money(sum)}</b></div><div>💸 Pagamentos e vales: <b>${money(paid)}</b></div><div style="width:100%;font-size:19px">${balance>=0?'💰 Saldo a pagar à Luciene':'✅ Adiantamento a favor da cabana'}: <b>${money(Math.abs(balance))}</b></div>`;
+  history.replaceChildren();
+  if(!payments.length){history.textContent='Nenhum pagamento ou vale registrado.'}
+  else for(const r of payments){const div=document.createElement('div');div.className='caldetail';div.innerHTML=`<b>${escapeHtml(r.tipo==='vale'?'Vale / adiantamento':'Pagamento')} — ${money(r.valor)}</b><p>Data: ${fmt(r.data_pagamento)}</p>${r.observacao?`<p>Observação: ${escapeHtml(r.observacao)}</p>`:''}`;const btn=document.createElement('button');btn.type='button';btn.className='no';btn.textContent='🗑️ Excluir pagamento';btn.onclick=()=>excluirLancamentoFinanceiro({...r,source:'luciene',date:r.data_pagamento},btn);div.append(btn);history.append(div)}
   out.replaceChildren();
   if(!rows.length){out.textContent='Nenhuma limpeza visível para este login. Se existem registros no Supabase, confira a permissão de administrador.';return}
   for(const r of rows){const div=document.createElement('div');div.className='caldetail';const date=new Date(r.realizada_em);div.innerHTML=`<b>Cabana ${Number(r.cabana_id)}</b><p>Funcionária: ${escapeHtml(r.funcionaria_nome)}</p><p>Data da limpeza: ${fmt(r.data_limpeza)}</p><p>Limpeza registrada: ${date.toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo'})}</p><b>${money(r.valor)}</b>`;out.append(div)}
- }catch(e){out.textContent='Erro ao consultar limpezas: '+e.message}
+ }catch(e){out.textContent='Erro ao consultar limpezas ou pagamentos: '+e.message;history.textContent='Não foi possível carregar os pagamentos.'}
 }
 function renderPartners(){
  const el=$('partnerList');el.replaceChildren();if(!partnerRecords.length){el.textContent='Nenhuma permuta ou parceria cadastrada.';return}
